@@ -17,10 +17,10 @@ index 3a740f5669876271a3f13c64e28eb6f2cb033b4c..cc1a5976b2c9de4caba8a17e8429ff39
      public BlockPosition a(BiomeBase biomebase, BlockPosition blockposition, int i, int j) {
          return this.getChunkProvider().getChunkGenerator().getWorldChunkManager().a(blockposition.getX(), blockposition.getY(), blockposition.getZ(), i, j, ImmutableList.of(biomebase), this.random, true);
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-index 65b36a17418ae64b6166704b3d0ecf97df1e9445..e3bde2e5d17e19a03e53e833ab75b1374b8a1908 100644
+index 65b36a17418ae64b6166704b3d0ecf97df1e9445..bb5250ce0576ba4172560cfed2f5b5b5dd9910ff 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-@@ -2493,6 +2493,20 @@ public class CraftWorld implements World {
+@@ -2493,6 +2493,75 @@ public class CraftWorld implements World {
          return (nearest == null) ? null : new Location(this, nearest.getX(), nearest.getY(), nearest.getZ());
      }
  
@@ -35,6 +35,61 @@ index 65b36a17418ae64b6166704b3d0ecf97df1e9445..e3bde2e5d17e19a03e53e833ab75b137
 +        BlockPosition originPos = new BlockPosition(origin.getX(), origin.getY(), origin.getZ());
 +        BlockPosition nearest = getHandle().getNearestBiome(CraftBlock.biomeToBiomeBase(biome), originPos, radius, step);
 +        return (nearest == null) ? null : new Location(this, nearest.getX(), nearest.getY(), nearest.getZ());
++    }
++
++    @Override
++    public boolean isUltrawarm() {
++        return getHandle().getDimensionManager().isNether();
++    }
++
++    @Override
++    public boolean isNatural() {
++        return getHandle().getDimensionManager().isNatural();
++    }
++
++    @Override
++    public boolean isShrunk() {
++        return getHandle().getDimensionManager().h();
++    }
++
++    @Override
++    public boolean hasSkylight() {
++        return getHandle().getDimensionManager().hasSkyLight();
++    }
++
++    @Override
++    public boolean hasCeiling() {
++        return getHandle().getDimensionManager().hasCeiling();
++    }
++
++    @Override
++    public boolean isPiglinSafe() {
++        return getHandle().getDimensionManager().isPiglinSafe();
++    }
++
++    @Override
++    public boolean isBedWorks() {
++        return getHandle().getDimensionManager().isBedWorks();
++    }
++
++    @Override
++    public boolean isRespawnAnchorWorks() {
++        return getHandle().getDimensionManager().isRespawnAnchorWorks();
++    }
++
++    @Override
++    public boolean hasRaids() {
++        return getHandle().getDimensionManager().hasRaids();
++    }
++
++    @Override
++    public boolean isFixedTime() {
++        return getHandle().getDimensionManager().isFixedTime();
++    }
++
++    @Override
++    public Collection<org.bukkit.Material> getInfiniburn() {
++        return com.google.common.collect.Sets.newHashSet(com.google.common.collect.Iterators.transform(getHandle().getDimensionManager().q().getTagged().iterator(), CraftMagicNumbers::getMaterial));
 +    }
 +    // Paper end
 +
