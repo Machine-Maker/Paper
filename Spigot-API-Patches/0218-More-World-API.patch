@@ -1,0 +1,25 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jake Potrebic <jake.m.potrebic@gmail.com>
+Date: Tue, 7 Jul 2020 10:53:22 -0700
+Subject: [PATCH] More-World-API
+
+
+diff --git a/src/main/java/org/bukkit/World.java b/src/main/java/org/bukkit/World.java
+index 75c9225bd07b4c4b6dcd702c52294a7637eb6884..2e9ff9e949a4e71724ca290209a123d74ff72bef 100644
+--- a/src/main/java/org/bukkit/World.java
++++ b/src/main/java/org/bukkit/World.java
+@@ -3363,6 +3363,14 @@ public interface World extends PluginMessageRecipient, Metadatable {
+     @Nullable
+     public Location locateNearestStructure(@NotNull Location origin, @NotNull StructureType structureType, int radius, boolean findUnexplored);
+ 
++    // Paper start
++    @Nullable
++    Location locateNearestBiome(@NotNull Location origin, @NotNull Biome biome, int radius);
++
++    @Nullable
++    Location locateNearestBiome(@NotNull Location origin, @NotNull Biome biome, int radius, int step);
++    // Paper end
++
+     // Spigot start
+     /**
+      * Returns the view distance used for this world.

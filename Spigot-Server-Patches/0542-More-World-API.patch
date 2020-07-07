@@ -1,0 +1,43 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jake Potrebic <jake.m.potrebic@gmail.com>
+Date: Tue, 7 Jul 2020 10:52:34 -0700
+Subject: [PATCH] More-World-API
+
+
+diff --git a/src/main/java/net/minecraft/server/WorldServer.java b/src/main/java/net/minecraft/server/WorldServer.java
+index 3a740f5669876271a3f13c64e28eb6f2cb033b4c..cc1a5976b2c9de4caba8a17e8429ff39c2633ade 100644
+--- a/src/main/java/net/minecraft/server/WorldServer.java
++++ b/src/main/java/net/minecraft/server/WorldServer.java
+@@ -1670,6 +1670,7 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+         return !this.worldDataServer.getGeneratorSettings().shouldGenerateMapFeatures() ? null : this.getChunkProvider().getChunkGenerator().findNearestMapFeature(this, structuregenerator, blockposition, i, flag); // CraftBukkit
+     }
+ 
++    public BlockPosition getNearestBiome(BiomeBase biomeBase, BlockPosition blockPosition, int radius, int step) { return this.a(biomeBase, blockPosition, radius, step); } // Paper - OBFHELPER
+     @Nullable
+     public BlockPosition a(BiomeBase biomebase, BlockPosition blockposition, int i, int j) {
+         return this.getChunkProvider().getChunkGenerator().getWorldChunkManager().a(blockposition.getX(), blockposition.getY(), blockposition.getZ(), i, j, ImmutableList.of(biomebase), this.random, true);
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+index 65b36a17418ae64b6166704b3d0ecf97df1e9445..e3bde2e5d17e19a03e53e833ab75b1374b8a1908 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+@@ -2493,6 +2493,20 @@ public class CraftWorld implements World {
+         return (nearest == null) ? null : new Location(this, nearest.getX(), nearest.getY(), nearest.getZ());
+     }
+ 
++    // Paper start
++    @Override
++    public Location locateNearestBiome(Location origin, Biome biome, int radius) {
++        return this.locateNearestBiome(origin, biome, radius, 8);
++    }
++
++    @Override
++    public Location locateNearestBiome(Location origin, Biome biome, int radius, int step) {
++        BlockPosition originPos = new BlockPosition(origin.getX(), origin.getY(), origin.getZ());
++        BlockPosition nearest = getHandle().getNearestBiome(CraftBlock.biomeToBiomeBase(biome), originPos, radius, step);
++        return (nearest == null) ? null : new Location(this, nearest.getX(), nearest.getY(), nearest.getZ());
++    }
++    // Paper end
++
+     @Override
+     public Raid locateNearestRaid(Location location, int radius) {
+         Validate.notNull(location, "Location cannot be null");
