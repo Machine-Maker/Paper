@@ -17,10 +17,10 @@ index 3a740f5669876271a3f13c64e28eb6f2cb033b4c..cc1a5976b2c9de4caba8a17e8429ff39
      public BlockPosition a(BiomeBase biomebase, BlockPosition blockposition, int i, int j) {
          return this.getChunkProvider().getChunkGenerator().getWorldChunkManager().a(blockposition.getX(), blockposition.getY(), blockposition.getZ(), i, j, ImmutableList.of(biomebase), this.random, true);
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-index 65b36a17418ae64b6166704b3d0ecf97df1e9445..bb5250ce0576ba4172560cfed2f5b5b5dd9910ff 100644
+index 65b36a17418ae64b6166704b3d0ecf97df1e9445..92cd420b1968b858d09e6711ae5598a1d8d867aa 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-@@ -2493,6 +2493,75 @@ public class CraftWorld implements World {
+@@ -2493,6 +2493,87 @@ public class CraftWorld implements World {
          return (nearest == null) ? null : new Location(this, nearest.getX(), nearest.getY(), nearest.getZ());
      }
  
@@ -68,12 +68,12 @@ index 65b36a17418ae64b6166704b3d0ecf97df1e9445..bb5250ce0576ba4172560cfed2f5b5b5
 +    }
 +
 +    @Override
-+    public boolean isBedWorks() {
++    public boolean doesBedWork() {
 +        return getHandle().getDimensionManager().isBedWorks();
 +    }
 +
 +    @Override
-+    public boolean isRespawnAnchorWorks() {
++    public boolean doesRespawnAnchorWork() {
 +        return getHandle().getDimensionManager().isRespawnAnchorWorks();
 +    }
 +
@@ -90,6 +90,18 @@ index 65b36a17418ae64b6166704b3d0ecf97df1e9445..bb5250ce0576ba4172560cfed2f5b5b5
 +    @Override
 +    public Collection<org.bukkit.Material> getInfiniburn() {
 +        return com.google.common.collect.Sets.newHashSet(com.google.common.collect.Iterators.transform(getHandle().getDimensionManager().q().getTagged().iterator(), CraftMagicNumbers::getMaterial));
++    }
++
++    @Override
++    public void broadcastMessage(String message) {
++        getPlayers().forEach(Player::sendMessage);
++    }
++
++    @Override
++    public void broadcastMessage(String message, String permission) {
++        getPlayers().forEach(player -> {
++            if (player.hasPermission(permission)) player.sendMessage(message);
++        });
 +    }
 +    // Paper end
 +
