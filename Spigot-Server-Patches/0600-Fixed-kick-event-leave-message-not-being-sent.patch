@@ -5,10 +5,10 @@ Subject: [PATCH] Fixed kick event leave message not being sent
 
 
 diff --git a/src/main/java/net/minecraft/server/PlayerConnection.java b/src/main/java/net/minecraft/server/PlayerConnection.java
-index 563ae7355f4f4645d21f2fbd494a5b5656c5e664..9876d3dae3b0fc1e3668f655ffac328e6d9e56da 100644
+index a736d676ef5e3a25c144743af559bfb46e294db7..f003ce2093ca7cd73f230cf31301cdd9675befd8 100644
 --- a/src/main/java/net/minecraft/server/PlayerConnection.java
 +++ b/src/main/java/net/minecraft/server/PlayerConnection.java
-@@ -303,7 +303,7 @@ public class PlayerConnection implements PacketListenerPlayIn {
+@@ -304,7 +304,7 @@ public class PlayerConnection implements PacketListenerPlayIn {
          this.networkManager.sendPacket(new PacketPlayOutKickDisconnect(ichatbasecomponent), (future) -> {
              this.networkManager.close(ichatbasecomponent);
          });
@@ -17,7 +17,7 @@ index 563ae7355f4f4645d21f2fbd494a5b5656c5e664..9876d3dae3b0fc1e3668f655ffac328e
          this.networkManager.stopReading();
          MinecraftServer minecraftserver = this.minecraftServer;
          NetworkManager networkmanager = this.networkManager;
-@@ -1658,6 +1658,12 @@ public class PlayerConnection implements PacketListenerPlayIn {
+@@ -1659,6 +1659,12 @@ public class PlayerConnection implements PacketListenerPlayIn {
  
      @Override
      public void a(IChatBaseComponent ichatbasecomponent) {
@@ -30,7 +30,7 @@ index 563ae7355f4f4645d21f2fbd494a5b5656c5e664..9876d3dae3b0fc1e3668f655ffac328e
          // CraftBukkit start - Rarely it would send a disconnect line twice
          if (this.processedDisconnect) {
              return;
-@@ -1673,7 +1679,7 @@ public class PlayerConnection implements PacketListenerPlayIn {
+@@ -1674,7 +1680,7 @@ public class PlayerConnection implements PacketListenerPlayIn {
          */
  
          this.player.p();
@@ -40,7 +40,7 @@ index 563ae7355f4f4645d21f2fbd494a5b5656c5e664..9876d3dae3b0fc1e3668f655ffac328e
              this.minecraftServer.getPlayerList().sendMessage(CraftChatMessage.fromString(quitMessage));
          }
 diff --git a/src/main/java/net/minecraft/server/PlayerList.java b/src/main/java/net/minecraft/server/PlayerList.java
-index 38f26e25cb7d022c0bec5a5928db70611a0d347a..14b8e0fec234e247141827bb0a8c20b04a965d85 100644
+index 1faefcb5d23e2b86932611ba850fb7b60de896c7..1b57dd0eae4e94ea88db91091bdc6abf015ff4f6 100644
 --- a/src/main/java/net/minecraft/server/PlayerList.java
 +++ b/src/main/java/net/minecraft/server/PlayerList.java
 @@ -498,7 +498,7 @@ public abstract class PlayerList {
@@ -56,8 +56,8 @@ index 38f26e25cb7d022c0bec5a5928db70611a0d347a..14b8e0fec234e247141827bb0a8c20b0
              entityplayer.closeInventory(org.bukkit.event.inventory.InventoryCloseEvent.Reason.DISCONNECT); // Paper
          }
  
--        PlayerQuitEvent playerQuitEvent = new PlayerQuitEvent(cserver.getPlayer(entityplayer), "\u00A7e" + entityplayer.getName() + " left the game");
-+        PlayerQuitEvent playerQuitEvent = new PlayerQuitEvent(cserver.getPlayer(entityplayer), leaveMessage); // Paper
+-        PlayerQuitEvent playerQuitEvent = new PlayerQuitEvent(cserver.getPlayer(entityplayer), "\u00A7e" + entityplayer.getName() + " left the game", entityplayer.quitReason); // Paper - quit reason
++        PlayerQuitEvent playerQuitEvent = new PlayerQuitEvent(cserver.getPlayer(entityplayer), leaveMessage, entityplayer.quitReason); // Paper - quit reason
          if (entityplayer.didPlayerJoinEvent) cserver.getPluginManager().callEvent(playerQuitEvent); // Paper - if we disconnected before join ever fired, don't fire quit
          entityplayer.getBukkitEntity().disconnect(playerQuitEvent.getQuitMessage());
  
