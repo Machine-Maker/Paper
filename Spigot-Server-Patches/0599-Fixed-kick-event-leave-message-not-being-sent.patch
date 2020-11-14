@@ -5,7 +5,7 @@ Subject: [PATCH] Fixed kick event leave message not being sent
 
 
 diff --git a/src/main/java/net/minecraft/server/PlayerConnection.java b/src/main/java/net/minecraft/server/PlayerConnection.java
-index 563ae7355f4f4645d21f2fbd494a5b5656c5e664..daff4bd095ee2ab1b6462c0d8258503da92c013a 100644
+index 563ae7355f4f4645d21f2fbd494a5b5656c5e664..7b44f231f03d41d83c7680cfa9efc729e8d646ed 100644
 --- a/src/main/java/net/minecraft/server/PlayerConnection.java
 +++ b/src/main/java/net/minecraft/server/PlayerConnection.java
 @@ -303,7 +303,7 @@ public class PlayerConnection implements PacketListenerPlayIn {
@@ -29,22 +29,24 @@ index 563ae7355f4f4645d21f2fbd494a5b5656c5e664..daff4bd095ee2ab1b6462c0d8258503d
          // CraftBukkit start - Rarely it would send a disconnect line twice
          if (this.processedDisconnect) {
              return;
-@@ -1673,7 +1678,6 @@ public class PlayerConnection implements PacketListenerPlayIn {
+@@ -1673,7 +1678,7 @@ public class PlayerConnection implements PacketListenerPlayIn {
          */
  
          this.player.p();
 -        String quitMessage = this.minecraftServer.getPlayerList().disconnect(this.player);
++        // String quitMessage = this.minecraftServer.getPlayerList().disconnect(this.player); // Paper
          if ((quitMessage != null) && (quitMessage.length() > 0)) {
              this.minecraftServer.getPlayerList().sendMessage(CraftChatMessage.fromString(quitMessage));
          }
-@@ -1690,6 +1694,7 @@ public class PlayerConnection implements PacketListenerPlayIn {
+@@ -1688,7 +1693,7 @@ public class PlayerConnection implements PacketListenerPlayIn {
+             PlayerConnection.LOGGER.info("Stopping singleplayer server as player logged out");
+             this.minecraftServer.safeShutdown(false);
          }
- 
+-
++        // Paper end
      }
-+    // Paper end
  
      public void sendPacket(Packet<?> packet) {
-         this.a(packet, (GenericFutureListener) null);
 diff --git a/src/main/java/net/minecraft/server/PlayerList.java b/src/main/java/net/minecraft/server/PlayerList.java
 index 38f26e25cb7d022c0bec5a5928db70611a0d347a..14b8e0fec234e247141827bb0a8c20b04a965d85 100644
 --- a/src/main/java/net/minecraft/server/PlayerList.java
