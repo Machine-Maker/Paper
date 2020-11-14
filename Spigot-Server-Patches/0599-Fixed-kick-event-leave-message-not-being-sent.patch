@@ -5,7 +5,7 @@ Subject: [PATCH] Fixed kick event leave message not being sent
 
 
 diff --git a/src/main/java/net/minecraft/server/PlayerConnection.java b/src/main/java/net/minecraft/server/PlayerConnection.java
-index 563ae7355f4f4645d21f2fbd494a5b5656c5e664..7b44f231f03d41d83c7680cfa9efc729e8d646ed 100644
+index 563ae7355f4f4645d21f2fbd494a5b5656c5e664..9876d3dae3b0fc1e3668f655ffac328e6d9e56da 100644
 --- a/src/main/java/net/minecraft/server/PlayerConnection.java
 +++ b/src/main/java/net/minecraft/server/PlayerConnection.java
 @@ -303,7 +303,7 @@ public class PlayerConnection implements PacketListenerPlayIn {
@@ -17,7 +17,7 @@ index 563ae7355f4f4645d21f2fbd494a5b5656c5e664..7b44f231f03d41d83c7680cfa9efc729
          this.networkManager.stopReading();
          MinecraftServer minecraftserver = this.minecraftServer;
          NetworkManager networkmanager = this.networkManager;
-@@ -1658,6 +1658,11 @@ public class PlayerConnection implements PacketListenerPlayIn {
+@@ -1658,6 +1658,12 @@ public class PlayerConnection implements PacketListenerPlayIn {
  
      @Override
      public void a(IChatBaseComponent ichatbasecomponent) {
@@ -26,10 +26,11 @@ index 563ae7355f4f4645d21f2fbd494a5b5656c5e664..7b44f231f03d41d83c7680cfa9efc729
 +    }
 +
 +    private void onAllDisconnect(IChatBaseComponent ichatbasecomponent, String quitMessage) {
++        // Paper end
          // CraftBukkit start - Rarely it would send a disconnect line twice
          if (this.processedDisconnect) {
              return;
-@@ -1673,7 +1678,7 @@ public class PlayerConnection implements PacketListenerPlayIn {
+@@ -1673,7 +1679,7 @@ public class PlayerConnection implements PacketListenerPlayIn {
          */
  
          this.player.p();
@@ -38,15 +39,6 @@ index 563ae7355f4f4645d21f2fbd494a5b5656c5e664..7b44f231f03d41d83c7680cfa9efc729
          if ((quitMessage != null) && (quitMessage.length() > 0)) {
              this.minecraftServer.getPlayerList().sendMessage(CraftChatMessage.fromString(quitMessage));
          }
-@@ -1688,7 +1693,7 @@ public class PlayerConnection implements PacketListenerPlayIn {
-             PlayerConnection.LOGGER.info("Stopping singleplayer server as player logged out");
-             this.minecraftServer.safeShutdown(false);
-         }
--
-+        // Paper end
-     }
- 
-     public void sendPacket(Packet<?> packet) {
 diff --git a/src/main/java/net/minecraft/server/PlayerList.java b/src/main/java/net/minecraft/server/PlayerList.java
 index 38f26e25cb7d022c0bec5a5928db70611a0d347a..14b8e0fec234e247141827bb0a8c20b04a965d85 100644
 --- a/src/main/java/net/minecraft/server/PlayerList.java
