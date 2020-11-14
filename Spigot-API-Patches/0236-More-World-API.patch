@@ -5,18 +5,25 @@ Subject: [PATCH] More-World-API
 
 
 diff --git a/src/main/java/org/bukkit/World.java b/src/main/java/org/bukkit/World.java
-index 75c9225bd07b4c4b6dcd702c52294a7637eb6884..118394ac4956908571298d84afc75ef97e9b7e1e 100644
+index e827e1a6f5c0f8410ed32dda8f17aa769b469999..039115f57fe9f7345dfefe705c14b06e2bda6e4e 100644
 --- a/src/main/java/org/bukkit/World.java
 +++ b/src/main/java/org/bukkit/World.java
-@@ -3363,6 +3363,138 @@ public interface World extends PluginMessageRecipient, Metadatable {
+@@ -2,6 +2,7 @@ package org.bukkit;
+ 
+ import java.io.File;
+ 
++import net.md_5.bungee.api.chat.BaseComponent;
+ import org.bukkit.event.entity.CreatureSpawnEvent;
+ import org.bukkit.generator.ChunkGenerator;
+ 
+@@ -3379,6 +3380,137 @@ public interface World extends PluginMessageRecipient, Metadatable {
      @Nullable
      public Location locateNearestStructure(@NotNull Location origin, @NotNull StructureType structureType, int radius, boolean findUnexplored);
  
 +    // Paper start
-+
 +    /**
-+     * Locates the nearest biome based on an origin, biome type, and radius to search
-+     * Step defaults to 8
++     * Locates the nearest biome based on an origin, biome type, and radius to search.
++     * Step defaults to {@code 8}.
 +     *
 +     * @param origin Origin location
 +     * @param biome Biome to find
@@ -41,87 +48,87 @@ index 75c9225bd07b4c4b6dcd702c52294a7637eb6884..118394ac4956908571298d84afc75ef9
 +
 +    /**
 +     * Checks if the world:
-+     * evaporates water
-+     * dries sponges
-+     * has lava spread faster and further
++     * <ul>
++     *     <li>evaporates water</li>
++     *     <li>dries sponges</li>
++     *     <li>has lava spread faster and further</li>
++     * </ul>
 +     *
 +     * @return true if ultrawarm, false if not
 +     */
 +    boolean isUltrawarm();
 +
 +    /**
-+     * Checks if the world is natural
-+     * If false, compasses will spin randomly in the world
-+     * if true, nether portals will spawn zombified piglins
++     * Checks if the world is natural.
++     * <p>
++     *     If {@code false}, compasses will spin randomly in the world.
++     *      * if {@code true}, nether portals will spawn zombified piglins.
++     * </p>
 +     *
 +     * @return true or false
 +     */
 +    boolean isNatural();
 +
 +    /**
-+     * Checks if the world is shrunk
-+     * where 1 block is 8 blocks in the overworld
-+     * like the nether
++     * Gets the coordinate scaling of this world.
 +     *
-+     * @return true if shrunk
++     * @return the coordinate scale
 +     */
-+    boolean isShrunk();
++    double getCoordinateScale();
 +
 +    /**
 +     * Checks if the world has skylight access
 +     *
-+     * @return true if it has access
++     * @return whether there is skylight
 +     */
 +    boolean hasSkylight();
 +
 +    /**
 +     * Checks if the world has a bedrock ceiling
 +     *
-+     * @return true if it has a bedrock ceiling
++     * @return whether the world has a bedrock ceiling
 +     */
-+    boolean hasCeiling();
++    boolean hasBedrockCeiling();
 +
 +    /**
-+     * Checks if piglins will turn into zombified piglins
-+     * in this world
++     * Checks if piglins will turn into Zombified Piglins in this world
 +     *
-+     * @return true if piglins will NOT transform
++     * @return whether Piglins will <i>not</i> transform
 +     */
 +    boolean isPiglinSafe();
 +
 +    /**
 +     * Checks if beds work
 +     *
-+     * @return true if beds work
++     * @return whether beds work
 +     */
 +    boolean doesBedWork();
 +
 +    /**
 +     * Checks if respawn anchors work
 +     *
-+     * @return true if they work
++     * @return whether respawn anchors work
 +     */
 +    boolean doesRespawnAnchorWork();
 +
 +    /**
 +     * Checks if this world supports raids
 +     *
-+     * @return true if supported
++     * @return whether this world supports raids
 +     */
 +    boolean hasRaids();
 +
 +    /**
 +     * Checks if this world has a fixed time
 +     *
-+     * @return true if fixed
++     * @return whether this world has fixed time
 +     */
 +    boolean isFixedTime();
 +
 +    /**
-+     * Gets the collection of materials that burn
-+     * infinitely in this world
++     * Gets the collection of materials that burn infinitely in this world.
 +     *
-+     * @return the infinite burn materials
++     * @return the materials that will forever stay lit by fire
 +     */
 +    @NotNull
 +    Collection<Material> getInfiniburn();
@@ -132,7 +139,7 @@ index 75c9225bd07b4c4b6dcd702c52294a7637eb6884..118394ac4956908571298d84afc75ef9
 +     *
 +     * @param message Message to broadcast
 +     */
-+    void broadcastMessage(@NotNull String message);
++    void broadcastMessage(@NotNull BaseComponent[] message);
 +
 +    /**
 +     * Broadcast a message to all players
@@ -141,7 +148,7 @@ index 75c9225bd07b4c4b6dcd702c52294a7637eb6884..118394ac4956908571298d84afc75ef9
 +     * @param message Message to broadcast
 +     * @param permission Permission to check
 +     */
-+    void broadcastMessage(@NotNull String message, @NotNull String permission);
++    void broadcastMessage(@NotNull BaseComponent[] message, @NotNull String permission);
 +    // Paper end
 +
      // Spigot start

@@ -5,22 +5,39 @@ Subject: [PATCH] More-World-API
 
 
 diff --git a/src/main/java/net/minecraft/server/WorldServer.java b/src/main/java/net/minecraft/server/WorldServer.java
-index 3a740f5669876271a3f13c64e28eb6f2cb033b4c..cc1a5976b2c9de4caba8a17e8429ff39c2633ade 100644
+index b1968103165475dd4021570e3a24deb3dc3ac796..1dcd18e9915bc1cf571959b934b3194f4b0a9064 100644
 --- a/src/main/java/net/minecraft/server/WorldServer.java
 +++ b/src/main/java/net/minecraft/server/WorldServer.java
-@@ -1670,6 +1670,7 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+@@ -1744,6 +1744,7 @@ public class WorldServer extends World implements GeneratorAccessSeed {
          return !this.worldDataServer.getGeneratorSettings().shouldGenerateMapFeatures() ? null : this.getChunkProvider().getChunkGenerator().findNearestMapFeature(this, structuregenerator, blockposition, i, flag); // CraftBukkit
      }
  
 +    public BlockPosition getNearestBiome(BiomeBase biomeBase, BlockPosition blockPosition, int radius, int step) { return this.a(biomeBase, blockPosition, radius, step); } // Paper - OBFHELPER
      @Nullable
      public BlockPosition a(BiomeBase biomebase, BlockPosition blockposition, int i, int j) {
-         return this.getChunkProvider().getChunkGenerator().getWorldChunkManager().a(blockposition.getX(), blockposition.getY(), blockposition.getZ(), i, j, ImmutableList.of(biomebase), this.random, true);
+         return this.getChunkProvider().getChunkGenerator().getWorldChunkManager().a(blockposition.getX(), blockposition.getY(), blockposition.getZ(), i, j, (biomebase1) -> {
+@@ -1766,6 +1767,7 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+         return this.savingDisabled;
+     }
+ 
++    public IRegistryCustom getWorldCustomRegistry() { return r(); } // Paper - OBFHELPER
+     @Override
+     public IRegistryCustom r() {
+         return this.server.getCustomRegistry();
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-index 65b36a17418ae64b6166704b3d0ecf97df1e9445..92cd420b1968b858d09e6711ae5598a1d8d867aa 100644
+index 299f57ca2a65887a0d7e7c584fc1bd5c783b0db2..e50044c3d7fb9fd9b8b79b87dcffe7666f5aa1d0 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-@@ -2493,6 +2493,87 @@ public class CraftWorld implements World {
+@@ -22,6 +22,8 @@ import java.util.UUID;
+ import java.util.concurrent.CompletableFuture;
+ import java.util.function.Predicate;
+ import java.util.stream.Collectors;
++
++import net.md_5.bungee.api.chat.BaseComponent;
+ import net.minecraft.server.ArraySetSorted;
+ import net.minecraft.server.AxisAlignedBB;
+ import net.minecraft.server.BiomeBase;
+@@ -2488,6 +2490,87 @@ public class CraftWorld implements World {
          return (nearest == null) ? null : new Location(this, nearest.getX(), nearest.getY(), nearest.getZ());
      }
  
@@ -33,7 +50,7 @@ index 65b36a17418ae64b6166704b3d0ecf97df1e9445..92cd420b1968b858d09e6711ae5598a1
 +    @Override
 +    public Location locateNearestBiome(Location origin, Biome biome, int radius, int step) {
 +        BlockPosition originPos = new BlockPosition(origin.getX(), origin.getY(), origin.getZ());
-+        BlockPosition nearest = getHandle().getNearestBiome(CraftBlock.biomeToBiomeBase(biome), originPos, radius, step);
++        BlockPosition nearest = getHandle().getNearestBiome(CraftBlock.biomeToBiomeBase(getHandle().getWorldCustomRegistry().b(IRegistry.ay), biome), originPos, radius, step);
 +        return (nearest == null) ? null : new Location(this, nearest.getX(), nearest.getY(), nearest.getZ());
 +    }
 +
@@ -48,8 +65,8 @@ index 65b36a17418ae64b6166704b3d0ecf97df1e9445..92cd420b1968b858d09e6711ae5598a1
 +    }
 +
 +    @Override
-+    public boolean isShrunk() {
-+        return getHandle().getDimensionManager().h();
++    public double getCoordinateScale() {
++        return getHandle().getDimensionManager().getCoordinateScale();
 +    }
 +
 +    @Override
@@ -58,8 +75,8 @@ index 65b36a17418ae64b6166704b3d0ecf97df1e9445..92cd420b1968b858d09e6711ae5598a1
 +    }
 +
 +    @Override
-+    public boolean hasCeiling() {
-+        return getHandle().getDimensionManager().hasCeiling();
++    public boolean hasBedrockCeiling() {
++        return getHandle().getDimensionManager().hasSkyLight();
 +    }
 +
 +    @Override
@@ -89,16 +106,16 @@ index 65b36a17418ae64b6166704b3d0ecf97df1e9445..92cd420b1968b858d09e6711ae5598a1
 +
 +    @Override
 +    public Collection<org.bukkit.Material> getInfiniburn() {
-+        return com.google.common.collect.Sets.newHashSet(com.google.common.collect.Iterators.transform(getHandle().getDimensionManager().q().getTagged().iterator(), CraftMagicNumbers::getMaterial));
++        return com.google.common.collect.Sets.newHashSet(com.google.common.collect.Iterators.transform(getHandle().getDimensionManager().o().getTagged().iterator(), CraftMagicNumbers::getMaterial));
 +    }
 +
 +    @Override
-+    public void broadcastMessage(String message) {
++    public void broadcastMessage(BaseComponent[] message) {
 +        getPlayers().forEach(Player::sendMessage);
 +    }
 +
 +    @Override
-+    public void broadcastMessage(String message, String permission) {
++    public void broadcastMessage(BaseComponent[] message, String permission) {
 +        getPlayers().forEach(player -> {
 +            if (player.hasPermission(permission)) player.sendMessage(message);
 +        });
