@@ -62,10 +62,10 @@ index 286ffd7e62af8484c2e80a5a7bf297d5975cec4f..65731e56c8da122d75eb94cf2a0d40bf
          Tag<Block> tag = TagsBlock.a().a(this.infiniburn);
  
 diff --git a/src/main/java/net/minecraft/server/WorldServer.java b/src/main/java/net/minecraft/server/WorldServer.java
-index b1968103165475dd4021570e3a24deb3dc3ac796..1dcd18e9915bc1cf571959b934b3194f4b0a9064 100644
+index 5b0b6edfa790918e56399ff6c83f3feb6e5aca49..4d53395d7dee58d6dec940f7fd81b3b6c7fb7743 100644
 --- a/src/main/java/net/minecraft/server/WorldServer.java
 +++ b/src/main/java/net/minecraft/server/WorldServer.java
-@@ -1744,6 +1744,7 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+@@ -1742,6 +1742,7 @@ public class WorldServer extends World implements GeneratorAccessSeed {
          return !this.worldDataServer.getGeneratorSettings().shouldGenerateMapFeatures() ? null : this.getChunkProvider().getChunkGenerator().findNearestMapFeature(this, structuregenerator, blockposition, i, flag); // CraftBukkit
      }
  
@@ -73,7 +73,7 @@ index b1968103165475dd4021570e3a24deb3dc3ac796..1dcd18e9915bc1cf571959b934b3194f
      @Nullable
      public BlockPosition a(BiomeBase biomebase, BlockPosition blockposition, int i, int j) {
          return this.getChunkProvider().getChunkGenerator().getWorldChunkManager().a(blockposition.getX(), blockposition.getY(), blockposition.getZ(), i, j, (biomebase1) -> {
-@@ -1766,6 +1767,7 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+@@ -1764,6 +1765,7 @@ public class WorldServer extends World implements GeneratorAccessSeed {
          return this.savingDisabled;
      }
  
@@ -82,7 +82,7 @@ index b1968103165475dd4021570e3a24deb3dc3ac796..1dcd18e9915bc1cf571959b934b3194f
      public IRegistryCustom r() {
          return this.server.getCustomRegistry();
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-index 299f57ca2a65887a0d7e7c584fc1bd5c783b0db2..3280877186038f296c759675b67c22d079373d65 100644
+index b71316cce3bdbf3485be456f0260c6b3463cff8e..16b3c72e6cf3184e6a6da2cae6f950a8123ffe07 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 @@ -22,6 +22,8 @@ import java.util.UUID;
@@ -94,7 +94,7 @@ index 299f57ca2a65887a0d7e7c584fc1bd5c783b0db2..3280877186038f296c759675b67c22d0
  import net.minecraft.server.ArraySetSorted;
  import net.minecraft.server.AxisAlignedBB;
  import net.minecraft.server.BiomeBase;
-@@ -2488,6 +2490,87 @@ public class CraftWorld implements World {
+@@ -2505,6 +2507,87 @@ public class CraftWorld implements World {
          return (nearest == null) ? null : new Location(this, nearest.getX(), nearest.getY(), nearest.getZ());
      }
  
@@ -167,12 +167,12 @@ index 299f57ca2a65887a0d7e7c584fc1bd5c783b0db2..3280877186038f296c759675b67c22d0
 +    }
 +
 +    @Override
-+    public void broadcastMessage(BaseComponent[] message) {
++    public void broadcastMessage(String message) {
 +        getPlayers().forEach(Player::sendMessage);
 +    }
 +
 +    @Override
-+    public void broadcastMessage(BaseComponent[] message, String permission) {
++    public void broadcastMessage(String message, String permission) {
 +        getPlayers().forEach(player -> {
 +            if (player.hasPermission(permission)) player.sendMessage(message);
 +        });

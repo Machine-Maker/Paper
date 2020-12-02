@@ -5,7 +5,7 @@ Subject: [PATCH] More-World-API
 
 
 diff --git a/src/main/java/org/bukkit/World.java b/src/main/java/org/bukkit/World.java
-index e827e1a6f5c0f8410ed32dda8f17aa769b469999..039115f57fe9f7345dfefe705c14b06e2bda6e4e 100644
+index e6d2abf284c103a8bcddd8b4f9cb34d86a4f2fa6..b7556c84a95500ec49661eddbbdcbc4c6257b44d 100644
 --- a/src/main/java/org/bukkit/World.java
 +++ b/src/main/java/org/bukkit/World.java
 @@ -2,6 +2,7 @@ package org.bukkit;
@@ -16,7 +16,7 @@ index e827e1a6f5c0f8410ed32dda8f17aa769b469999..039115f57fe9f7345dfefe705c14b06e
  import org.bukkit.event.entity.CreatureSpawnEvent;
  import org.bukkit.generator.ChunkGenerator;
  
-@@ -3379,6 +3380,137 @@ public interface World extends PluginMessageRecipient, Metadatable {
+@@ -3431,6 +3432,137 @@ public interface World extends PluginMessageRecipient, Metadatable {
      @Nullable
      public Location locateNearestStructure(@NotNull Location origin, @NotNull StructureType structureType, int radius, boolean findUnexplored);
  
@@ -139,7 +139,7 @@ index e827e1a6f5c0f8410ed32dda8f17aa769b469999..039115f57fe9f7345dfefe705c14b06e
 +     *
 +     * @param message Message to broadcast
 +     */
-+    void broadcastMessage(@NotNull BaseComponent[] message);
++    void broadcastMessage(@NotNull String message);
 +
 +    /**
 +     * Broadcast a message to all players
@@ -148,7 +148,7 @@ index e827e1a6f5c0f8410ed32dda8f17aa769b469999..039115f57fe9f7345dfefe705c14b06e
 +     * @param message Message to broadcast
 +     * @param permission Permission to check
 +     */
-+    void broadcastMessage(@NotNull BaseComponent[] message, @NotNull String permission);
++    void broadcastMessage(@NotNull String message, @NotNull String permission);
 +    // Paper end
 +
      // Spigot start
