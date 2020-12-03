@@ -1,0 +1,137 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jake Potrebic <jake.m.potrebic@gmail.com>
+Date: Wed, 2 Dec 2020 18:23:26 -0800
+Subject: [PATCH] Add cause to Weather/ThunderChangeEvents
+
+
+diff --git a/src/main/java/net/minecraft/server/WorldDataServer.java b/src/main/java/net/minecraft/server/WorldDataServer.java
+index a7e623044aece1f46e2d039cd2dcf710120ac267..04dc2172dbeb5e1f2934fdfd1fe51d74348c9c3b 100644
+--- a/src/main/java/net/minecraft/server/WorldDataServer.java
++++ b/src/main/java/net/minecraft/server/WorldDataServer.java
+@@ -297,8 +297,7 @@ public class WorldDataServer implements IWorldDataServer, SaveData {
+         return this.thundering;
+     }
+ 
+-    @Override
+-    public void setThundering(boolean flag) {
++    public void setThundering(boolean flag, org.bukkit.event.weather.ThunderChangeEvent.Cause cause) { // Paper
+         // CraftBukkit start
+         if (this.thundering == flag) {
+             return;
+@@ -306,13 +305,19 @@ public class WorldDataServer implements IWorldDataServer, SaveData {
+ 
+         org.bukkit.World world = Bukkit.getWorld(getName());
+         if (world != null) {
+-            ThunderChangeEvent thunder = new ThunderChangeEvent(world, flag);
++            ThunderChangeEvent thunder = new ThunderChangeEvent(world, flag, cause); // Paper
+             Bukkit.getServer().getPluginManager().callEvent(thunder);
+             if (thunder.isCancelled()) {
+                 return;
+             }
+         }
+         // CraftBukkit end
++        // Paper start
++        this.setThundering(flag);
++    }
++    @Override
++    public void setThundering(boolean flag) {
++        // Paper end
+         this.thundering = flag;
+     }
+ 
+@@ -331,8 +336,7 @@ public class WorldDataServer implements IWorldDataServer, SaveData {
+         return this.raining;
+     }
+ 
+-    @Override
+-    public void setStorm(boolean flag) {
++    public void setStorm(boolean flag, org.bukkit.event.weather.WeatherChangeEvent.Cause cause) { // Paper
+         // CraftBukkit start
+         if (this.raining == flag) {
+             return;
+@@ -340,13 +344,19 @@ public class WorldDataServer implements IWorldDataServer, SaveData {
+ 
+         org.bukkit.World world = Bukkit.getWorld(getName());
+         if (world != null) {
+-            WeatherChangeEvent weather = new WeatherChangeEvent(world, flag);
++            WeatherChangeEvent weather = new WeatherChangeEvent(world, flag, cause); // Paper
+             Bukkit.getServer().getPluginManager().callEvent(weather);
+             if (weather.isCancelled()) {
+                 return;
+             }
+         }
+         // CraftBukkit end
++        // Paper start
++        this.setStorm(flag);
++    }
++    @Override
++    public void setStorm(boolean flag) {
++        // Paper end
+         this.raining = flag;
+     }
+ 
+diff --git a/src/main/java/net/minecraft/server/WorldServer.java b/src/main/java/net/minecraft/server/WorldServer.java
+index 5b0b6edfa790918e56399ff6c83f3feb6e5aca49..2b6a1a8da7cdf9c49fe647d429e51fdd2c4f0c68 100644
+--- a/src/main/java/net/minecraft/server/WorldServer.java
++++ b/src/main/java/net/minecraft/server/WorldServer.java
+@@ -303,8 +303,8 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+         this.worldDataServer.a(i);
+         this.worldDataServer.setWeatherDuration(j);
+         this.worldDataServer.setThunderDuration(j);
+-        this.worldDataServer.setStorm(flag);
+-        this.worldDataServer.setThundering(flag1);
++        this.worldDataServer.setStorm(flag, org.bukkit.event.weather.WeatherChangeEvent.Cause.COMMAND); // Paper
++        this.worldDataServer.setThundering(flag1, org.bukkit.event.weather.ThunderChangeEvent.Cause.COMMAND); // Paper
+     }
+ 
+     public BiomeBase getBiomeBySeed(int i, int j, int k) { return a(i, j, k); } // Paper - OBFHELPER
+@@ -366,8 +366,8 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+                 this.worldDataServer.setThunderDuration(j);
+                 this.worldDataServer.setWeatherDuration(k);
+                 this.worldDataServer.a(i);
+-                this.worldDataServer.setThundering(flag1);
+-                this.worldDataServer.setStorm(flag2);
++                this.worldDataServer.setThundering(flag1, org.bukkit.event.weather.ThunderChangeEvent.Cause.NATURAL); // Paper
++                this.worldDataServer.setStorm(flag2, org.bukkit.event.weather.WeatherChangeEvent.Cause.NATURAL); // Paper
+             }
+ 
+             this.lastThunderLevel = this.thunderLevel;
+@@ -770,14 +770,14 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+ 
+     private void clearWeather() {
+         // CraftBukkit start
+-        this.worldDataServer.setStorm(false);
++        this.worldDataServer.setStorm(false, org.bukkit.event.weather.WeatherChangeEvent.Cause.COMMAND); // Paper - happens when weather cycle gamerule is set to false
+         // If we stop due to everyone sleeping we should reset the weather duration to some other random value.
+         // Not that everyone ever manages to get the whole server to sleep at the same time....
+         if (!this.worldDataServer.hasStorm()) {
+             this.worldDataServer.setWeatherDuration(0);
+         }
+         // CraftBukkit end
+-        this.worldDataServer.setThundering(false);
++        this.worldDataServer.setThundering(false, org.bukkit.event.weather.ThunderChangeEvent.Cause.COMMAND); // Paper - happens when weather cycle gamerule is set to false
+         // CraftBukkit start
+         // If we stop due to everyone sleeping we should reset the weather duration to some other random value.
+         // Not that everyone ever manages to get the whole server to sleep at the same time....
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+index b71316cce3bdbf3485be456f0260c6b3463cff8e..d3ca4b6b7772a5b8a9dd7f79a9a94866297bcaf2 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+@@ -1457,7 +1457,7 @@ public class CraftWorld implements World {
+ 
+     @Override
+     public void setStorm(boolean hasStorm) {
+-        world.worldData.setStorm(hasStorm);
++        world.worldDataServer.setStorm(hasStorm, org.bukkit.event.weather.WeatherChangeEvent.Cause.PLUGIN); // Paper
+         setWeatherDuration(0); // Reset weather duration (legacy behaviour)
+         setClearWeatherDuration(0); // Reset clear weather duration (reset "/weather clear" commands)
+     }
+@@ -1479,7 +1479,7 @@ public class CraftWorld implements World {
+ 
+     @Override
+     public void setThundering(boolean thundering) {
+-        world.worldDataServer.setThundering(thundering);
++        world.worldDataServer.setThundering(thundering, org.bukkit.event.weather.ThunderChangeEvent.Cause.PLUGIN); // Paper
+         setThunderDuration(0); // Reset weather duration (legacy behaviour)
+         setClearWeatherDuration(0); // Reset clear weather duration (reset "/weather clear" commands)
+     }
