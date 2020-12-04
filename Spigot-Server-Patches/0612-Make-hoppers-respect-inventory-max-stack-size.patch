@@ -5,21 +5,19 @@ Subject: [PATCH] Make hoppers respect inventory max stack size
 
 
 diff --git a/src/main/java/net/minecraft/server/TileEntityHopper.java b/src/main/java/net/minecraft/server/TileEntityHopper.java
-index d432de40eba2767f4ced4d9c642c9d2033acd0ea..a27621c4878aa9594c048aa66c3fbd8d950d9799 100644
+index d432de40eba2767f4ced4d9c642c9d2033acd0ea..ab5cea41f2ad016adf3f8c11c49bc001cc821162 100644
 --- a/src/main/java/net/minecraft/server/TileEntityHopper.java
 +++ b/src/main/java/net/minecraft/server/TileEntityHopper.java
-@@ -578,9 +578,13 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
+@@ -577,10 +577,13 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
+             } else if (a(itemstack1, itemstack)) {
                  int j = itemstack.getMaxStackSize() - itemstack1.getCount();
                  int k = Math.min(itemstack.getCount(), j);
- 
--                itemstack.subtract(k);
--                itemstack1.add(k);
--                flag = k > 0;
+-
 +                // Paper start - respect inventory max stack size
 +                if (itemstack1.getCount() + k < iinventory1.getMaxStackSize()) {
-+                    itemstack.subtract(k);
-+                    itemstack1.add(k);
-+                    flag = k > 0;
+                 itemstack.subtract(k);
+                 itemstack1.add(k);
+                 flag = k > 0;
 +                }
 +                // Paper end
              }
