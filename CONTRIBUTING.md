@@ -513,5 +513,18 @@ To install the API to your local maven repository, do the following:
 You can now use the API in your plugin to test it before PRing. You will also
 need to do this to build the Server with the implemented API.
 
+### How can I use a debugger on the Paper Server?
+
+To debug the paper server, do the following:
+
+- Go through the normal steps for debugging a plugin ([Intellij](https://www.spigotmc.org/wiki/intellij-debug-your-plugin/) or [Eclipse](https://www.spigotmc.org/wiki/eclipse-debug-your-plugin/)).
+    - Creating the debug profile, adding the correct java arguments, etc.
+- Activate the `noRelocation` Maven profile, either on the command line when you build your project (`-PnoRelocation`), or in your various build configurations.
+    - When this profile is activated, the output jar will not have relocated packages
+    - Relocation breaks debugging/hotswapping
+- Start Paper server
+- Start Debugger
+- Add breakpoints and start debugging!
+
 [MiniMappingViewer]: https://minidigger.github.io/MiniMappingViewer/
 [yarn]: https://github.com/FabricMC/yarn
