@@ -5,7 +5,7 @@ Subject: [PATCH] POM Changes
 
 
 diff --git a/pom.xml b/pom.xml
-index 185aa47591ddf92bece217a56078bd74777f749a..7d38039fcba45ee55f35c0291ad66a58ef99c392 100644
+index 185aa47591ddf92bece217a56078bd74777f749a..e69b5b2f8c946a2cf60fbc6488faa0e92436ff05 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -1,15 +1,14 @@
@@ -195,6 +195,44 @@ index 185aa47591ddf92bece217a56078bd74777f749a..7d38039fcba45ee55f35c0291ad66a58
                  <dependencies>
                      <!-- we need our custom version as it fixes some bugs on case sensitive file systems -->
                      <dependency>
+@@ -297,6 +309,37 @@
+     </build>
+ 
+     <profiles>
++        <profile>
++            <id>noRelocation</id>
++            <build>
++                <plugins>
++                    <plugin>
++                        <groupId>org.apache.maven.plugins</groupId>
++                        <artifactId>maven-shade-plugin</artifactId>
++                        <version>3.2.3</version>
++                        <executions>
++                            <execution>
++                                <phase>package</phase>
++                                <goals>
++                                    <goal>shade</goal>
++                                </goals>
++                                <configuration>
++                                    <relocations combine.self="override">
++                                    </relocations>
++                                </configuration>
++                            </execution>
++                        </executions>
++                        <dependencies>
++                            <dependency>
++                                <groupId>com.github.edwgiz</groupId>
++                                <artifactId>maven-shade-plugin.log4j2-cachefile-transformer</artifactId>
++                                <version>2.13.1</version>
++                            </dependency>
++                        </dependencies>
++                    </plugin>
++                </plugins>
++            </build>
++        </profile>
+         <profile>
+             <id>shadeSourcesJar</id>
+             <properties>
 diff --git a/src/main/java/org/bukkit/craftbukkit/Main.java b/src/main/java/org/bukkit/craftbukkit/Main.java
 index 60ede7442b2d9a63fcd765aff29a96c9130aebac..3f52c19b6b797e26b3dcedcec2afd28c478e7091 100644
 --- a/src/main/java/org/bukkit/craftbukkit/Main.java
