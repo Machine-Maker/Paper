@@ -5,7 +5,7 @@ Subject: [PATCH] Make hoppers respect inventory max stack size
 
 
 diff --git a/src/main/java/net/minecraft/server/TileEntityHopper.java b/src/main/java/net/minecraft/server/TileEntityHopper.java
-index d432de40eba2767f4ced4d9c642c9d2033acd0ea..ff1a0b806ac60dee1efd672bb6ce3d032328f6d6 100644
+index d432de40eba2767f4ced4d9c642c9d2033acd0ea..077f70c66553677a94f7defa8b968c58f41f1638 100644
 --- a/src/main/java/net/minecraft/server/TileEntityHopper.java
 +++ b/src/main/java/net/minecraft/server/TileEntityHopper.java
 @@ -569,13 +569,21 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
@@ -16,8 +16,7 @@ index d432de40eba2767f4ced4d9c642c9d2033acd0ea..ff1a0b806ac60dee1efd672bb6ce3d03
 +                int origCount = itemstack.getCount();
 +                itemstack.setCount(Math.min(iinventory1.getMaxStackSize(), itemstack.getCount()));
                  IGNORE_TILE_UPDATES = true; // Paper
--                iinventory1.setItem(i, itemstack);
-+                iinventory1.setItem(i, itemstack.cloneItemStack());
+                 iinventory1.setItem(i, itemstack);
                  IGNORE_TILE_UPDATES = false; // Paper
 +                if (origCount - itemstack.getCount() == 0) {
                  itemstack = ItemStack.b;
