@@ -1,0 +1,67 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jake Potrebic <jake.m.potrebic@gmail.com>
+Date: Sun, 6 Dec 2020 18:06:56 -0800
+Subject: [PATCH] Spawner API - Nerf Mobs
+
+
+diff --git a/src/main/java/net/minecraft/server/MobSpawnerAbstract.java b/src/main/java/net/minecraft/server/MobSpawnerAbstract.java
+index c2e830db7aa2944a477624e149a3ba66d112b68a..3265700039e645779a568afe1e4782af7c057860 100644
+--- a/src/main/java/net/minecraft/server/MobSpawnerAbstract.java
++++ b/src/main/java/net/minecraft/server/MobSpawnerAbstract.java
+@@ -25,6 +25,7 @@ public abstract class MobSpawnerAbstract {
+     public int requiredPlayerRange = 16;
+     public int spawnRange = 4;
+     private int tickDelay = 0; // Paper
++    public boolean nerfMobs = false; private static final String PAPER_NERF_MOBS = "Paper.NerfMobs"; // Paper
+ 
+     public MobSpawnerAbstract() {}
+ 
+@@ -159,7 +160,7 @@ public abstract class MobSpawnerAbstract {
+                                     ((EntityInsentient) entity).prepare(worldserver, world.getDamageScaler(entity.getChunkCoordinates()), EnumMobSpawn.SPAWNER, (GroupDataEntity) null, (NBTTagCompound) null);
+                                 }
+                                 // Spigot Start
+-                                if ( entityinsentient.world.spigotConfig.nerfSpawnerMobs )
++                                if ( entityinsentient.world.spigotConfig.nerfSpawnerMobs || this.nerfMobs ) // Paper - Nerf Mobs API
+                                 {
+                                     entityinsentient.aware = false;
+                                 }
+@@ -268,6 +269,11 @@ public abstract class MobSpawnerAbstract {
+             this.j = null;
+         }
+ 
++        // Paper start - api for nerfing mobs
++        if (nbttagcompound.hasKeyOfType(PAPER_NERF_MOBS, org.bukkit.craftbukkit.util.CraftMagicNumbers.NBT.TAG_BYTE)) {
++            this.nerfMobs = nbttagcompound.getBoolean(PAPER_NERF_MOBS);
++        }
++        // Paper end
+     }
+ 
+     public NBTTagCompound b(NBTTagCompound nbttagcompound) {
+@@ -289,6 +295,7 @@ public abstract class MobSpawnerAbstract {
+ 
+             nbttagcompound.setShort("MinSpawnDelay", (short) Math.min(Short.MAX_VALUE, this.minSpawnDelay));
+             nbttagcompound.setShort("MaxSpawnDelay", (short) Math.min(Short.MAX_VALUE, this.maxSpawnDelay));
++            nbttagcompound.setBoolean(PAPER_NERF_MOBS, this.nerfMobs);
+             // Paper end
+             nbttagcompound.setShort("SpawnCount", (short) this.spawnCount);
+             nbttagcompound.setShort("MaxNearbyEntities", (short) this.maxNearbyEntities);
+diff --git a/src/main/java/org/bukkit/craftbukkit/block/CraftCreatureSpawner.java b/src/main/java/org/bukkit/craftbukkit/block/CraftCreatureSpawner.java
+index e78e3804bad9b0b6004939cadf40465dec68fdba..df01b292f5a35e945fb685667158df03d6d75bed 100644
+--- a/src/main/java/org/bukkit/craftbukkit/block/CraftCreatureSpawner.java
++++ b/src/main/java/org/bukkit/craftbukkit/block/CraftCreatureSpawner.java
+@@ -132,5 +132,15 @@ public class CraftCreatureSpawner extends CraftBlockEntityState<TileEntityMobSpa
+     public void resetTimer() {
+         this.getSnapshot().getSpawner().resetTimer();
+     }
++
++    @Override
++    public boolean isNerfingMobs() {
++        return this.getSnapshot().getSpawner().nerfMobs;
++    }
++
++    @Override
++    public void setNerfingMobs(boolean nerfingMobs) {
++        this.getSnapshot().getSpawner().nerfMobs = nerfingMobs;
++    }
+     // Paper end
+ }

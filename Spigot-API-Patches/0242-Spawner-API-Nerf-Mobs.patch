@@ -1,0 +1,34 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jake Potrebic <jake.m.potrebic@gmail.com>
+Date: Sun, 6 Dec 2020 18:06:50 -0800
+Subject: [PATCH] Spawner API - Nerf Mobs
+
+
+diff --git a/src/main/java/org/bukkit/block/CreatureSpawner.java b/src/main/java/org/bukkit/block/CreatureSpawner.java
+index 35a599ebe9a35dc9570d546d73622da87cb136c4..d6d6d73bd0671597ad9bf054140d5a0200ae1605 100644
+--- a/src/main/java/org/bukkit/block/CreatureSpawner.java
++++ b/src/main/java/org/bukkit/block/CreatureSpawner.java
+@@ -212,5 +212,23 @@ public interface CreatureSpawner extends TileState {
+      * Resets the spawn delay timer within the min/max range
+      */
+     public void resetTimer();
++
++    /**
++     * Gets whether the spawner nerfs spawned mobs.
++     * <p>
++     * <b>NOTE:</b> The value returned here is independent of the spigot.yml setting "nerf-spawner-mobs".
++     *
++     * @return true if spawned mobs are nerfed
++     */
++    boolean isNerfingMobs();
++
++    /**
++     * Sets the spawner to nerf mobs spawned from it.
++     * <p>
++     * <b>NOTE:</b> If the "nerf-spawner-mobs" setting in spigot.yml is true, all spawners will nerf mobs.
++     *
++     * @param nerfingMobs true to nerf mobs
++     */
++    void setNerfingMobs(boolean nerfingMobs);
+     // Paper end
+ }
