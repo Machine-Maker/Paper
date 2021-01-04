@@ -1,0 +1,99 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jake Potrebic <jake.m.potrebic@gmail.com>
+Date: Sun, 3 Jan 2021 17:58:11 -0800
+Subject: [PATCH] Add BlockBreakBlockDropItemEvent
+
+
+diff --git a/src/main/java/net/minecraft/server/Block.java b/src/main/java/net/minecraft/server/Block.java
+index 1fc98698b81c079ebe4a524200232db1fe143bdf..e873bbc5ed6829dd36130829e6b75d6db5e304af 100644
+--- a/src/main/java/net/minecraft/server/Block.java
++++ b/src/main/java/net/minecraft/server/Block.java
+@@ -10,6 +10,7 @@ import java.util.stream.Stream;
+ import javax.annotation.Nullable;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
++import io.papermc.paper.event.block.BlockBreakBlockDropItemEvent; // Paper
+ 
+ public class Block extends BlockBase implements IMaterial {
+ 
+@@ -180,6 +181,7 @@ public class Block extends BlockBase implements IMaterial {
+ 
+     public void postBreak(GeneratorAccess generatoraccess, BlockPosition blockposition, IBlockData iblockdata) {}
+ 
++    public static List<ItemStack> getNaturalDrops(IBlockData iBlockData, WorldServer worldServer, BlockPosition blockPosition, @Nullable TileEntity tileEntity) { return a(iBlockData, worldServer, blockPosition, tileEntity); } // Paper - OBFHELPER
+     public static List<ItemStack> a(IBlockData iblockdata, WorldServer worldserver, BlockPosition blockposition, @Nullable TileEntity tileentity) {
+         LootTableInfo.Builder loottableinfo_builder = (new LootTableInfo.Builder(worldserver)).a(worldserver.random).set(LootContextParameters.ORIGIN, Vec3D.a((BaseBlockPosition) blockposition)).set(LootContextParameters.TOOL, ItemStack.b).setOptional(LootContextParameters.BLOCK_ENTITY, tileentity);
+ 
+@@ -212,6 +214,19 @@ public class Block extends BlockBase implements IMaterial {
+         }
+ 
+     }
++    // Paper start
++    public static boolean dropItemsWithEvent(IBlockData iBlockData, GeneratorAccess generatorAccess, BlockPosition blockPosition, BlockPosition source, @Nullable TileEntity tileEntity) {
++        if (generatorAccess instanceof WorldServer) {
++            BlockBreakBlockDropItemEvent event = new BlockBreakBlockDropItemEvent(org.bukkit.craftbukkit.block.CraftBlock.at(generatorAccess, blockPosition), org.bukkit.craftbukkit.block.CraftBlock.at(generatorAccess, source), Block.getNaturalDrops(iBlockData, (WorldServer) generatorAccess, blockPosition, tileEntity).stream().map(org.bukkit.craftbukkit.inventory.CraftItemStack::asBukkitCopy).collect(java.util.stream.Collectors.toList()));
++            event.callEvent();
++            event.getDrops().stream().map(org.bukkit.craftbukkit.inventory.CraftItemStack::asNMSCopy).forEach((itemstack) -> {
++                dropItem((World) ((WorldServer) generatorAccess), blockPosition, itemstack);
++            });
++            iBlockData.dropNaturally((WorldServer) generatorAccess, blockPosition, ItemStack.b);
++        }
++        return true;
++    }
++    // Paper end
+ 
+     public static void dropItems(IBlockData iblockdata, World world, BlockPosition blockposition, @Nullable TileEntity tileentity, Entity entity, ItemStack itemstack) {
+         if (world instanceof WorldServer) {
+diff --git a/src/main/java/net/minecraft/server/BlockPiston.java b/src/main/java/net/minecraft/server/BlockPiston.java
+index 5d3bb5f393a1e0e4a2e8b9a466530a91279697a9..2002de3e8d49a16fe38ea9dddec0ce7375aad10b 100644
+--- a/src/main/java/net/minecraft/server/BlockPiston.java
++++ b/src/main/java/net/minecraft/server/BlockPiston.java
+@@ -364,7 +364,7 @@ public class BlockPiston extends BlockDirectional {
+                 iblockdata1 = world.getType(blockposition3);
+                 TileEntity tileentity = iblockdata1.getBlock().isTileEntity() ? world.getTileEntity(blockposition3) : null;
+ 
+-                a(iblockdata1, (GeneratorAccess) world, blockposition3, tileentity);
++                dropItemsWithEvent(iblockdata1, (GeneratorAccess) world, blockposition3, blockposition, tileentity); // Paper
+                 world.setTypeAndData(blockposition3, Blocks.AIR.getBlockData(), 18);
+                 aiblockdata[j++] = iblockdata1;
+             }
+diff --git a/src/main/java/net/minecraft/server/FluidTypeFlowing.java b/src/main/java/net/minecraft/server/FluidTypeFlowing.java
+index d72a88e9275eb00eed35b6467538a46e5cee32d5..7741bf283838eef135ec490afd9842c834d44a0c 100644
+--- a/src/main/java/net/minecraft/server/FluidTypeFlowing.java
++++ b/src/main/java/net/minecraft/server/FluidTypeFlowing.java
+@@ -273,7 +273,7 @@ public abstract class FluidTypeFlowing extends FluidType {
+             ((IFluidContainer) iblockdata.getBlock()).place(generatoraccess, blockposition, iblockdata, fluid);
+         } else {
+             if (!iblockdata.isAir()) {
+-                this.a(generatoraccess, blockposition, iblockdata);
++                this.beforeBlockDestroy(generatoraccess, blockposition, blockposition.shift(enumdirection.opposite()), iblockdata); // Paper
+             }
+ 
+             generatoraccess.setTypeAndData(blockposition, fluid.getBlockData(), 3);
+@@ -281,6 +281,7 @@ public abstract class FluidTypeFlowing extends FluidType {
+ 
+     }
+ 
++    protected void beforeBlockDestroy(GeneratorAccess generatorAccess, BlockPosition blockPosition, BlockPosition source, IBlockData iBlockData) { a(generatorAccess, blockPosition, iBlockData); } // Paper - OBFHELPER (kinda)
+     protected abstract void a(GeneratorAccess generatoraccess, BlockPosition blockposition, IBlockData iblockdata);
+ 
+     private static short a(BlockPosition blockposition, BlockPosition blockposition1) {
+diff --git a/src/main/java/net/minecraft/server/FluidTypeWater.java b/src/main/java/net/minecraft/server/FluidTypeWater.java
+index b89bae0dbaf5d410e6abe2657a6cd499dc7012d4..412f5a5c4810e0ee99501a55a57a20e3a789de11 100644
+--- a/src/main/java/net/minecraft/server/FluidTypeWater.java
++++ b/src/main/java/net/minecraft/server/FluidTypeWater.java
+@@ -24,6 +24,14 @@ public abstract class FluidTypeWater extends FluidTypeFlowing {
+         return true;
+     }
+ 
++    // Paper start
++    @Override
++    protected void beforeBlockDestroy(GeneratorAccess generatorAccess, BlockPosition blockPosition, BlockPosition source, IBlockData iBlockData) {
++        TileEntity tileentity = iBlockData.getBlock().isTileEntity() ? generatorAccess.getTileEntity(blockPosition) : null;
++
++        Block.dropItemsWithEvent(iBlockData, generatorAccess, blockPosition, source, tileentity);
++    }
++    // Paper end
+     @Override
+     protected void a(GeneratorAccess generatoraccess, BlockPosition blockposition, IBlockData iblockdata) {
+         TileEntity tileentity = iblockdata.getBlock().isTileEntity() ? generatoraccess.getTileEntity(blockposition) : null;
