@@ -1,0 +1,183 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jake Potrebic <jake.m.potrebic@gmail.com>
+Date: Mon, 4 Jan 2021 23:47:30 -0800
+Subject: [PATCH] Added PlayerInteractAngerPiglinEvent
+
+
+diff --git a/src/main/java/net/minecraft/server/AxisAlignedBB.java b/src/main/java/net/minecraft/server/AxisAlignedBB.java
+index ed9b2f9adfecdc6d1b9925579ec510657adde11f..30c817f7cde73b08cb825eb928aeb5370ededce9 100644
+--- a/src/main/java/net/minecraft/server/AxisAlignedBB.java
++++ b/src/main/java/net/minecraft/server/AxisAlignedBB.java
+@@ -159,6 +159,7 @@ public class AxisAlignedBB {
+         return new AxisAlignedBB(d3, d4, d5, d6, d7, d8);
+     }
+ 
++    public AxisAlignedBB inflate(double size) { return g(size); } // Paper - OBFHELPER
+     public AxisAlignedBB g(double d0) {
+         return this.grow(d0, d0, d0);
+     }
+diff --git a/src/main/java/net/minecraft/server/BehaviorUtil.java b/src/main/java/net/minecraft/server/BehaviorUtil.java
+index d0e7c6b4c0b1e5993f0019e7a448423e048a8af5..cf58b465efc8e13701240152845f1b3be24302b1 100644
+--- a/src/main/java/net/minecraft/server/BehaviorUtil.java
++++ b/src/main/java/net/minecraft/server/BehaviorUtil.java
+@@ -124,6 +124,7 @@ public class BehaviorUtil {
+         }
+     }
+ 
++    public static boolean canSeeTarget(EntityLiving entityLiving, EntityLiving target) { return c(entityLiving, target); } // Paper - OBFHELPER
+     public static boolean c(EntityLiving entityliving, EntityLiving entityliving1) {
+         BehaviorController<?> behaviorcontroller = entityliving.getBehaviorController();
+ 
+diff --git a/src/main/java/net/minecraft/server/Block.java b/src/main/java/net/minecraft/server/Block.java
+index 1fc98698b81c079ebe4a524200232db1fe143bdf..59363f5cbd9c89e52bae2b852e9079c3641fc825 100644
+--- a/src/main/java/net/minecraft/server/Block.java
++++ b/src/main/java/net/minecraft/server/Block.java
+@@ -315,7 +315,7 @@ public class Block extends BlockBase implements IMaterial {
+     public void a(World world, BlockPosition blockposition, IBlockData iblockdata, EntityHuman entityhuman) {
+         world.a(entityhuman, 2001, blockposition, getCombinedId(iblockdata));
+         if (this.a((Tag) TagsBlock.GUARDED_BY_PIGLINS)) {
+-            PiglinAI.a(entityhuman, false);
++            PiglinAI.angerNearbyPiglins(entityhuman, false, MCUtil.toLocation(world, blockposition), null); // Paper
+         }
+ 
+     }
+diff --git a/src/main/java/net/minecraft/server/BlockBarrel.java b/src/main/java/net/minecraft/server/BlockBarrel.java
+index 78f41af5fba6562917b87778b54f40c25008bad2..674dedb3c513421540aa8f2d160dcd439e8bf25d 100644
+--- a/src/main/java/net/minecraft/server/BlockBarrel.java
++++ b/src/main/java/net/minecraft/server/BlockBarrel.java
+@@ -23,7 +23,8 @@ public class BlockBarrel extends BlockTileEntity {
+             if (tileentity instanceof TileEntityBarrel) {
+                 entityhuman.openContainer((TileEntityBarrel) tileentity);
+                 entityhuman.a(StatisticList.OPEN_BARREL);
+-                PiglinAI.a(entityhuman, true);
++                org.bukkit.block.Block block = org.bukkit.craftbukkit.block.CraftBlock.at(world, blockposition); // Paper
++                PiglinAI.angerNearbyPiglins(entityhuman, true, block.getLocation(), block.getState() instanceof org.bukkit.inventory.InventoryHolder ? (org.bukkit.inventory.InventoryHolder) block.getState() : null); // Paper
+             }
+ 
+             return EnumInteractionResult.CONSUME;
+diff --git a/src/main/java/net/minecraft/server/BlockChest.java b/src/main/java/net/minecraft/server/BlockChest.java
+index 12a0230448dd8d56f6dc20e23cacaf0b8a9433d1..5e03be215496262c6b261fd6c7ee12b79ac01b30 100644
+--- a/src/main/java/net/minecraft/server/BlockChest.java
++++ b/src/main/java/net/minecraft/server/BlockChest.java
+@@ -216,7 +216,8 @@ public class BlockChest extends BlockChestAbstract<TileEntityChest> implements I
+             if (itileinventory != null) {
+                 entityhuman.openContainer(itileinventory);
+                 entityhuman.b(this.c());
+-                PiglinAI.a(entityhuman, true);
++                org.bukkit.block.Block block = org.bukkit.craftbukkit.block.CraftBlock.at(world, blockposition); // Paper
++                PiglinAI.angerNearbyPiglins(entityhuman, true, block.getLocation(), block.getState() instanceof org.bukkit.inventory.InventoryHolder ? (org.bukkit.inventory.InventoryHolder) block.getState() : null); // Paper
+             }
+ 
+             return EnumInteractionResult.CONSUME;
+diff --git a/src/main/java/net/minecraft/server/BlockEnderChest.java b/src/main/java/net/minecraft/server/BlockEnderChest.java
+index 896d99d404419fef5bdf6f9083e07dfc978f4e67..f370c519c8295406bb1ee2c171129aac788d38a7 100644
+--- a/src/main/java/net/minecraft/server/BlockEnderChest.java
++++ b/src/main/java/net/minecraft/server/BlockEnderChest.java
+@@ -51,7 +51,8 @@ public class BlockEnderChest extends BlockChestAbstract<TileEntityEnderChest> im
+                     return ContainerChest.a(i, playerinventory, inventoryenderchest);
+                 }, BlockEnderChest.e));
+                 entityhuman.a(StatisticList.OPEN_ENDERCHEST);
+-                PiglinAI.a(entityhuman, true);
++                org.bukkit.block.Block block = org.bukkit.craftbukkit.block.CraftBlock.at(world, blockposition); // Paper
++                PiglinAI.angerNearbyPiglins(entityhuman, true, block.getLocation(), block.getState() instanceof org.bukkit.inventory.InventoryHolder ? (org.bukkit.inventory.InventoryHolder) block.getState() : null); // Paper
+                 return EnumInteractionResult.CONSUME;
+             }
+         } else {
+diff --git a/src/main/java/net/minecraft/server/BlockShulkerBox.java b/src/main/java/net/minecraft/server/BlockShulkerBox.java
+index 9d7db48e266b497cb948fcb2b8a126344d051cd4..cca87dfb9673553e3e6d3002efecc157d2f85835 100644
+--- a/src/main/java/net/minecraft/server/BlockShulkerBox.java
++++ b/src/main/java/net/minecraft/server/BlockShulkerBox.java
+@@ -50,7 +50,8 @@ public class BlockShulkerBox extends BlockTileEntity {
+                 if (flag) {
+                     entityhuman.openContainer(tileentityshulkerbox);
+                     entityhuman.a(StatisticList.OPEN_SHULKER_BOX);
+-                    PiglinAI.a(entityhuman, true);
++                    org.bukkit.block.Block block = org.bukkit.craftbukkit.block.CraftBlock.at(world, blockposition); // Paper
++                    PiglinAI.angerNearbyPiglins(entityhuman, true, block.getLocation(), block.getState() instanceof org.bukkit.inventory.InventoryHolder ? (org.bukkit.inventory.InventoryHolder) block.getState() : null); // Paper
+                 }
+ 
+                 return EnumInteractionResult.CONSUME;
+diff --git a/src/main/java/net/minecraft/server/EntityMinecartContainer.java b/src/main/java/net/minecraft/server/EntityMinecartContainer.java
+index 574838bd33a46e464ff7d801345613a3351f487f..4fe6c10eeae262cead959177b0232efbb9f1761d 100644
+--- a/src/main/java/net/minecraft/server/EntityMinecartContainer.java
++++ b/src/main/java/net/minecraft/server/EntityMinecartContainer.java
+@@ -81,7 +81,7 @@ public abstract class EntityMinecartContainer extends EntityMinecartAbstract imp
+                 Entity entity = damagesource.j();
+ 
+                 if (entity != null && entity.getEntityType() == EntityTypes.PLAYER) {
+-                    PiglinAI.a((EntityHuman) entity, true);
++                    PiglinAI.angerNearbyPiglins((EntityHuman) entity, true, getLocation(), getBukkitEntity() instanceof InventoryHolder ? (InventoryHolder) getBukkitEntity() : null); // Paper
+                 }
+             }
+         }
+@@ -207,7 +207,7 @@ public abstract class EntityMinecartContainer extends EntityMinecartAbstract imp
+     public EnumInteractionResult a(EntityHuman entityhuman, EnumHand enumhand) {
+         entityhuman.openContainer(this);
+         if (!entityhuman.world.isClientSide) {
+-            PiglinAI.a(entityhuman, true);
++            PiglinAI.angerNearbyPiglins(entityhuman, true, this.getLocation(), getBukkitEntity() instanceof InventoryHolder ? (InventoryHolder) getBukkitEntity() : null); // Paper
+             return EnumInteractionResult.CONSUME;
+         } else {
+             return EnumInteractionResult.SUCCESS;
+diff --git a/src/main/java/net/minecraft/server/IEntityAccess.java b/src/main/java/net/minecraft/server/IEntityAccess.java
+index 2639c17b7f6100533f33124f9e49990cd303d161..a3d06b2f25d6a2ef9a50924a66d568e0fdf26ef8 100644
+--- a/src/main/java/net/minecraft/server/IEntityAccess.java
++++ b/src/main/java/net/minecraft/server/IEntityAccess.java
+@@ -47,6 +47,7 @@ public interface IEntityAccess {
+         }
+     }
+ 
++    default <T extends Entity> List<T> getEntitiesOfClass(Class<? extends T> entityClass, AxisAlignedBB boundingBox) { return a(entityClass, boundingBox); } // Paper - OBFHELPER
+     default <T extends Entity> List<T> a(Class<? extends T> oclass, AxisAlignedBB axisalignedbb) {
+         return this.a(oclass, axisalignedbb, IEntitySelector.g);
+     }
+diff --git a/src/main/java/net/minecraft/server/PiglinAI.java b/src/main/java/net/minecraft/server/PiglinAI.java
+index 0407fa1751d89a037da8cb01f5ceef9b9833dd18..03c39ffddeffecfaca448864c9df067aaa69334d 100644
+--- a/src/main/java/net/minecraft/server/PiglinAI.java
++++ b/src/main/java/net/minecraft/server/PiglinAI.java
+@@ -9,6 +9,7 @@ import java.util.List;
+ import java.util.Optional;
+ import java.util.Random;
+ import java.util.Set;
++import io.papermc.paper.event.player.PlayerInteractAngerPiglinEvent; // Paper
+ 
+ public class PiglinAI {
+ 
+@@ -356,6 +357,29 @@ public class PiglinAI {
+         }
+     }
+ 
++    // Paper start
++    public static void angerNearbyPiglins(EntityHuman entityHuman, boolean wasOpeningOfAInventory, org.bukkit.Location location, @javax.annotation.Nullable org.bukkit.inventory.InventoryHolder inventoryHolder) {
++        List<EntityPiglin> list = entityHuman.world.getEntitiesOfClass(EntityPiglin.class, entityHuman.getBoundingBox().inflate(16.0D));
++        List<EntityPiglin> piglinsToBeAngered = new java.util.ArrayList<>();
++        for (EntityPiglin entityPiglinAbstract : list) {
++            if (PiglinAI.isIdle(entityPiglinAbstract) && (!wasOpeningOfAInventory || BehaviorUtil.canSeeTarget(entityPiglinAbstract, entityHuman))) {
++                piglinsToBeAngered.add(entityPiglinAbstract);
++            }
++        }
++        PlayerInteractAngerPiglinEvent event = new PlayerInteractAngerPiglinEvent((org.bukkit.entity.Player) entityHuman.getBukkitEntity(), location, wasOpeningOfAInventory, inventoryHolder, piglinsToBeAngered.stream().map(EntityLiving::getBukkitLivingEntity).map(org.bukkit.craftbukkit.entity.CraftPiglin.class::cast).collect(java.util.stream.Collectors.toList()));
++        if (!event.callEvent()) return;
++        piglinsToBeAngered = event.getPiglinsToBeAngered().stream().map(org.bukkit.craftbukkit.entity.CraftPiglin.class::cast).map(org.bukkit.craftbukkit.entity.CraftPiglin::getHandle).collect(java.util.stream.Collectors.toList());
++
++        piglinsToBeAngered.forEach((entitypiglin) -> {
++            if (entitypiglin.world.getGameRules().getBoolean(GameRules.UNIVERSAL_ANGER)) {
++                d((EntityPiglinAbstract) entitypiglin, (EntityLiving) entityHuman);
++            } else {
++                c((EntityPiglinAbstract) entitypiglin, (EntityLiving) entityHuman);
++            }
++
++        });
++    }
++    // Paper end
+     public static void a(EntityHuman entityhuman, boolean flag) {
+         List<EntityPiglinAbstract> list = entityhuman.world.a(EntityPiglin.class, entityhuman.getBoundingBox().g(16.0D)); // CraftBukkit - decompile error
+ 
+@@ -634,6 +658,7 @@ public class PiglinAI {
+         return entitypiglin.getBehaviorController().hasMemory(MemoryModuleType.ATE_RECENTLY);
+     }
+ 
++    public static boolean isIdle(EntityPiglinAbstract entityPiglinAbstract) { return d(entityPiglinAbstract); } // Paper - OBFHELPER
+     protected static boolean d(EntityPiglinAbstract entitypiglinabstract) {
+         return entitypiglinabstract.getBehaviorController().c(Activity.IDLE);
+     }
