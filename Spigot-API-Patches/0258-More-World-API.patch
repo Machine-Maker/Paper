@@ -5,18 +5,10 @@ Subject: [PATCH] More-World-API
 
 
 diff --git a/src/main/java/org/bukkit/World.java b/src/main/java/org/bukkit/World.java
-index e6d2abf284c103a8bcddd8b4f9cb34d86a4f2fa6..b7556c84a95500ec49661eddbbdcbc4c6257b44d 100644
+index 4df6482da0cc498cad50eabdac183bea3634c74b..f275b16ede4ff397a6bf398f1abc17d7b0103f13 100644
 --- a/src/main/java/org/bukkit/World.java
 +++ b/src/main/java/org/bukkit/World.java
-@@ -2,6 +2,7 @@ package org.bukkit;
- 
- import java.io.File;
- 
-+import net.md_5.bungee.api.chat.BaseComponent;
- import org.bukkit.event.entity.CreatureSpawnEvent;
- import org.bukkit.generator.ChunkGenerator;
- 
-@@ -3431,6 +3432,137 @@ public interface World extends PluginMessageRecipient, Metadatable {
+@@ -3423,6 +3423,120 @@ public interface World extends PluginMessageRecipient, Metadatable {
      @Nullable
      public Location locateNearestStructure(@NotNull Location origin, @NotNull StructureType structureType, int radius, boolean findUnexplored);
  
@@ -132,23 +124,6 @@ index e6d2abf284c103a8bcddd8b4f9cb34d86a4f2fa6..b7556c84a95500ec49661eddbbdcbc4c
 +     */
 +    @NotNull
 +    Collection<Material> getInfiniburn();
-+
-+    /**
-+     * Broadcast a message to all players
-+     * in this world
-+     *
-+     * @param message Message to broadcast
-+     */
-+    void broadcastMessage(@NotNull String message);
-+
-+    /**
-+     * Broadcast a message to all players
-+     * with a permission in a world
-+     *
-+     * @param message Message to broadcast
-+     * @param permission Permission to check
-+     */
-+    void broadcastMessage(@NotNull String message, @NotNull String permission);
 +    // Paper end
 +
      // Spigot start

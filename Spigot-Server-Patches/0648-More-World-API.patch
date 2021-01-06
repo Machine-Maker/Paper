@@ -82,19 +82,10 @@ index 5b0b6edfa790918e56399ff6c83f3feb6e5aca49..4d53395d7dee58d6dec940f7fd81b3b6
      public IRegistryCustom r() {
          return this.server.getCustomRegistry();
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-index b71316cce3bdbf3485be456f0260c6b3463cff8e..16b3c72e6cf3184e6a6da2cae6f950a8123ffe07 100644
+index 0314cb1270803265dc4bf4268697b09aabf2c612..602c46b7d017e91cf5386b99b4b1c414492ff52f 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-@@ -22,6 +22,8 @@ import java.util.UUID;
- import java.util.concurrent.CompletableFuture;
- import java.util.function.Predicate;
- import java.util.stream.Collectors;
-+
-+import net.md_5.bungee.api.chat.BaseComponent;
- import net.minecraft.server.ArraySetSorted;
- import net.minecraft.server.AxisAlignedBB;
- import net.minecraft.server.BiomeBase;
-@@ -2505,6 +2507,87 @@ public class CraftWorld implements World {
+@@ -2514,6 +2514,75 @@ public class CraftWorld implements World {
          return (nearest == null) ? null : new Location(this, nearest.getX(), nearest.getY(), nearest.getZ());
      }
  
@@ -164,18 +155,6 @@ index b71316cce3bdbf3485be456f0260c6b3463cff8e..16b3c72e6cf3184e6a6da2cae6f950a8
 +    @Override
 +    public Collection<org.bukkit.Material> getInfiniburn() {
 +        return com.google.common.collect.Sets.newHashSet(com.google.common.collect.Iterators.transform(getHandle().getDimensionManager().getInfiniburnTag().getTagged().iterator(), CraftMagicNumbers::getMaterial));
-+    }
-+
-+    @Override
-+    public void broadcastMessage(String message) {
-+        getPlayers().forEach(Player::sendMessage);
-+    }
-+
-+    @Override
-+    public void broadcastMessage(String message, String permission) {
-+        getPlayers().forEach(player -> {
-+            if (player.hasPermission(permission)) player.sendMessage(message);
-+        });
 +    }
 +    // Paper end
 +
