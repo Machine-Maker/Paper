@@ -1,0 +1,166 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jake Potrebic <jake.m.potrebic@gmail.com>
+Date: Wed, 6 Jan 2021 23:38:05 -0800
+Subject: [PATCH] CommandFunction API
+
+
+diff --git a/src/main/java/io/papermc/paper/datapack/PaperCommandFunction.java b/src/main/java/io/papermc/paper/datapack/PaperCommandFunction.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..3528802b21038fc4f895204a27dc1f1de4ddbaa9
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/datapack/PaperCommandFunction.java
+@@ -0,0 +1,45 @@
++package io.papermc.paper.datapack;
++
++import net.minecraft.server.MinecraftServer;
++import org.bukkit.NamespacedKey;
++import org.bukkit.craftbukkit.util.CraftNamespacedKey;
++
++import java.util.ArrayList;
++import java.util.List;
++
++public class PaperCommandFunction implements CommandFunction {
++
++    private final net.minecraft.server.CustomFunction handle;
++    private NamespacedKey functionKey;
++    private List<String> commands;
++
++    public PaperCommandFunction(net.minecraft.server.CustomFunction handle) {
++        this.handle = handle;
++    }
++
++    @Override
++    public int execute() {
++        return MinecraftServer.getServer().getFunctionData().a(handle, MinecraftServer.getServer().getServerCommandListener().silent().withMaxPerms(2)); // Taken from /function command
++    }
++
++    @Override
++    public List<String> getCommands() {
++        if (this.commands == null) {
++            this.commands = new ArrayList<>();
++            for (net.minecraft.server.CustomFunction.c entry : handle.getEntries()) {
++                if (entry instanceof net.minecraft.server.CustomFunction.b) {
++                    commands.add(((net.minecraft.server.CustomFunction.b) entry).toString());
++                }
++            }
++        }
++        return this.commands;
++    }
++
++    @Override
++    public NamespacedKey getKey() {
++        if (this.functionKey == null) {
++            this.functionKey = CraftNamespacedKey.fromMinecraft(handle.getMinecraftKey());
++        }
++        return this.functionKey;
++    }
++}
+diff --git a/src/main/java/net/minecraft/server/CommandListenerWrapper.java b/src/main/java/net/minecraft/server/CommandListenerWrapper.java
+index 86f1cfe454ea0a989775b49a6b88375c766ef647..17d4771af70daf7d412221fea383067e55fdf9e1 100644
+--- a/src/main/java/net/minecraft/server/CommandListenerWrapper.java
++++ b/src/main/java/net/minecraft/server/CommandListenerWrapper.java
+@@ -77,6 +77,7 @@ public class CommandListenerWrapper implements ICompletionProvider, com.destroys
+         return this.a(resultconsumer1);
+     }
+ 
++    public CommandListenerWrapper silent() { return a(); } // Paper - OBFHELPER
+     public CommandListenerWrapper a() {
+         return this.j ? this : new CommandListenerWrapper(this.base, this.d, this.n, this.e, this.f, this.g, this.h, this.i, this.k, true, this.l, this.m);
+     }
+@@ -85,6 +86,7 @@ public class CommandListenerWrapper implements ICompletionProvider, com.destroys
+         return i == this.f ? this : new CommandListenerWrapper(this.base, this.d, this.n, this.e, i, this.g, this.h, this.i, this.k, this.j, this.l, this.m);
+     }
+ 
++    public CommandListenerWrapper withMaxPerms(int maxPerms) { return b(maxPerms); } // Paper - OBFHELPER
+     public CommandListenerWrapper b(int i) {
+         return i <= this.f ? this : new CommandListenerWrapper(this.base, this.d, this.n, this.e, i, this.g, this.h, this.i, this.k, this.j, this.l, this.m);
+     }
+diff --git a/src/main/java/net/minecraft/server/CustomFunction.java b/src/main/java/net/minecraft/server/CustomFunction.java
+index 67e1b153a6f2ff9547dd03fcf4abcbea851e69f9..bd8ace85c3108e1e530aea1fd00ba8befa7dd31a 100644
+--- a/src/main/java/net/minecraft/server/CustomFunction.java
++++ b/src/main/java/net/minecraft/server/CustomFunction.java
+@@ -8,6 +8,7 @@ import java.util.ArrayDeque;
+ import java.util.List;
+ import java.util.Optional;
+ import javax.annotation.Nullable;
++import io.papermc.paper.datapack.PaperCommandFunction; // Paper
+ 
+ public class CustomFunction {
+ 
+@@ -21,6 +22,7 @@ public class CustomFunction {
+         }
+         return timing;
+     }
++    private final PaperCommandFunction paperCommandFunction = new PaperCommandFunction(this); public final PaperCommandFunction getPaperCommandFunction() { return paperCommandFunction; }
+     // Paper end
+ 
+     public CustomFunction(MinecraftKey minecraftkey, CustomFunction.c[] acustomfunction_c) {
+@@ -33,6 +35,7 @@ public class CustomFunction {
+         return this.b;
+     }
+ 
++    public CustomFunction.c[] getEntries() { return b(); } // Paper - OBFHELPER
+     public CustomFunction.c[] b() {
+         return this.a;
+     }
+diff --git a/src/main/java/net/minecraft/server/CustomFunctionData.java b/src/main/java/net/minecraft/server/CustomFunctionData.java
+index 2a48d85f0490991eb323ef550cb6148d6387acaf..8ce34de22850ffa5cab2012d963a0eea2e1b1348 100644
+--- a/src/main/java/net/minecraft/server/CustomFunctionData.java
++++ b/src/main/java/net/minecraft/server/CustomFunctionData.java
+@@ -17,7 +17,7 @@ public class CustomFunctionData {
+     private final List<CustomFunctionData.a> f = Lists.newArrayList();
+     private final List<CustomFunction> g = Lists.newArrayList();
+     private boolean h;
+-    private CustomFunctionManager i;
++    private CustomFunctionManager i; public final CustomFunctionManager getCustomFunctionManager() { return i; } // Paper - OBFHELPER
+ 
+     public CustomFunctionData(MinecraftServer minecraftserver, CustomFunctionManager customfunctionmanager) {
+         this.server = minecraftserver;
+@@ -130,6 +130,7 @@ public class CustomFunctionData {
+         return this.server.getServerCommandListener().a(2).a();
+     }
+ 
++    public Optional<CustomFunction> getByKey(MinecraftKey minecraftKey) { return a(minecraftKey); } // Paper - OBFHELPER
+     public Optional<CustomFunction> a(MinecraftKey minecraftkey) {
+         return this.i.a(minecraftkey);
+     }
+diff --git a/src/main/java/net/minecraft/server/CustomFunctionManager.java b/src/main/java/net/minecraft/server/CustomFunctionManager.java
+index 8f269c76c07a83299ac1e593e9f5c873eae22192..24d52b60b94f8c387ea231f87430cc9fb3064d37 100644
+--- a/src/main/java/net/minecraft/server/CustomFunctionManager.java
++++ b/src/main/java/net/minecraft/server/CustomFunctionManager.java
+@@ -32,6 +32,7 @@ public class CustomFunctionManager implements IReloadListener {
+         return Optional.ofNullable(this.d.get(minecraftkey));
+     }
+ 
++    public Map<MinecraftKey, CustomFunction> getFunctions() { return a(); } // Paper - OBFHELPER
+     public Map<MinecraftKey, CustomFunction> a() {
+         return this.d;
+     }
+@@ -82,7 +83,7 @@ public class CustomFunctionManager implements IReloadListener {
+         CompletableFuture completablefuture2 = completablefuture.thenCombine(completablefuture1, Pair::of);
+ 
+         ireloadlistener_a.getClass();
+-        return completablefuture2.thenCompose(ireloadlistener_a::a).thenAcceptAsync((pair) -> {
++        return completablefuture2.thenCompose(ireloadlistener_a::a).thenAcceptAsync((java.util.function.Consumer<Pair>) (pair) -> { // Paper - decompile fix
+             Map<MinecraftKey, CompletableFuture<CustomFunction>> map = (Map) pair.getSecond();
+             Builder<MinecraftKey, CustomFunction> builder = ImmutableMap.builder();
+ 
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index dc7de2b59ec5ca3e5fba34dbb2aa2e6aed8f95cb..5702e0a99101b9f0e076dd8ec2982427d4852e63 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -2416,5 +2416,14 @@ public final class CraftServer implements Server {
+     public com.destroystokyo.paper.entity.ai.MobGoals getMobGoals() {
+         return mobGoals;
+     }
++    @Override
++    public java.util.Set<io.papermc.paper.datapack.CommandFunction> getCommandFunctions() {
++        return MinecraftServer.getServer().getFunctionData().getCustomFunctionManager().getFunctions().values().stream().map(net.minecraft.server.CustomFunction::getPaperCommandFunction).collect(java.util.stream.Collectors.toSet());
++    }
++
++    @Override
++    public io.papermc.paper.datapack.CommandFunction getCommandFunction(org.bukkit.NamespacedKey functionKey) {
++        return MinecraftServer.getServer().getFunctionData().getByKey(CraftNamespacedKey.toMinecraft(functionKey)).map(net.minecraft.server.CustomFunction::getPaperCommandFunction).orElse(null);
++    }
+     // Paper end
+ }
