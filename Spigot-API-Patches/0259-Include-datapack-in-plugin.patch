@@ -1,0 +1,137 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jake Potrebic <jake.m.potrebic@gmail.com>
+Date: Sat, 9 Jan 2021 22:21:41 -0800
+Subject: [PATCH] Include datapack in plugin
+
+
+diff --git a/src/main/java/io/papermc/paper/plugin/DatapackConfiguration.java b/src/main/java/io/papermc/paper/plugin/DatapackConfiguration.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..078fc43afac46e7317047082ada61561c031ffbc
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/plugin/DatapackConfiguration.java
+@@ -0,0 +1,79 @@
++package io.papermc.paper.plugin;
++
++import org.bukkit.plugin.InvalidDescriptionException;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++import java.util.Map;
++
++public class DatapackConfiguration {
++
++    private final String directoryName;
++    private final String afterPack;
++    private final String beforePack;
++    private final boolean last;
++    private final boolean first;
++
++    public DatapackConfiguration(@NotNull Map<String, Object> map) throws InvalidDescriptionException {
++        this.directoryName = map.getOrDefault("directory", "datapack").toString();
++
++        if (map.containsKey("order")) {
++            this.afterPack = (String) map.getOrDefault("after", null);
++            if (this.afterPack != null && map.containsKey("before")) {
++                throw new InvalidDescriptionException("Cannot define multiple orders! Pick one of (after | before | first | last)");
++            } else {
++                this.beforePack = map.get("before").toString();
++            }
++            if ((this.afterPack != null || this.beforePack != null) && map.containsKey("last")) {
++                throw new InvalidDescriptionException("Cannot define multiple orders! Pick one of (after | before | first | last)");
++            } else {
++                this.last = Boolean.valueOf(map.get("last").toString());
++            }
++            if ((this.afterPack != null || this.beforePack != null || this.last) && map.containsKey("first")) {
++                throw new InvalidDescriptionException("Cannot define multiple orders! Pick one of (after | before | first | last)");
++            } else {
++                this.first = Boolean.valueOf(map.get("first").toString());
++            }
++        } else {
++            this.afterPack = null;
++            this.beforePack = null;
++            this.last = false;
++            this.first = false;
++        }
++    }
++
++    public DatapackConfiguration() {
++        this.directoryName = "datapack";
++        this.afterPack = null;
++        this.beforePack = null;
++        this.last = false;
++        this.first = false;
++    }
++
++    public boolean isOrdered() {
++        return afterPack != null || beforePack != null || last || first;
++    }
++
++    @NotNull
++    public String getDirectoryName() {
++        return directoryName;
++    }
++
++    @Nullable
++    public String getAfterPack() {
++        return afterPack;
++    }
++
++    @Nullable
++    public String getBeforePack() {
++        return beforePack;
++    }
++
++    public boolean isLast() {
++        return last;
++    }
++
++    public boolean isFirst() {
++        return first;
++    }
++}
+diff --git a/src/main/java/org/bukkit/plugin/PluginDescriptionFile.java b/src/main/java/org/bukkit/plugin/PluginDescriptionFile.java
+index f78a7df6e2edbbbaeb0edf4330125b2c2fa39a57..cfe1fc48804b89037c0a523b11a58401031de235 100644
+--- a/src/main/java/org/bukkit/plugin/PluginDescriptionFile.java
++++ b/src/main/java/org/bukkit/plugin/PluginDescriptionFile.java
+@@ -247,6 +247,7 @@ public final class PluginDescriptionFile {
+     private PermissionDefault defaultPerm = PermissionDefault.OP;
+     private Set<PluginAwareness> awareness = ImmutableSet.of();
+     private String apiVersion = null;
++    private io.papermc.paper.plugin.DatapackConfiguration datapackConfiguration = new io.papermc.paper.plugin.DatapackConfiguration();
+ 
+     public PluginDescriptionFile(@NotNull final InputStream stream) throws InvalidDescriptionException {
+         loadMap(asMap(YAML.get().load(stream)));
+@@ -966,6 +967,17 @@ public final class PluginDescriptionFile {
+     public String getClassLoaderOf() {
+         return classLoaderOf;
+     }
++    // Paper start
++    /**
++     * Get the configuration for the datapack associated with the plugin.
++     *
++     * @return the datapack configuration
++     */
++    @NotNull
++    public io.papermc.paper.plugin.DatapackConfiguration getDatapackConfiguration() {
++        return datapackConfiguration;
++    }
++    // Paper end
+ 
+     /**
+      * Saves this PluginDescriptionFile to the given writer
+@@ -1136,6 +1148,15 @@ public final class PluginDescriptionFile {
+         if (map.get("prefix") != null) {
+             prefix = map.get("prefix").toString();
+         }
++        // Paper start
++        if (map.get("datapack") != null) {
++            try {
++                datapackConfiguration = new io.papermc.paper.plugin.DatapackConfiguration((java.util.Map<String, Object>) map.get("datapack"));
++            } catch(ClassCastException exception){
++                throw new InvalidDescriptionException(exception, "datapack is of the wrong type");
++            }
++        }
++        // Paper end
+     }
+ 
+     @NotNull

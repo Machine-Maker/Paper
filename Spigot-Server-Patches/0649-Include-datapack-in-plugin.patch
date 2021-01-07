@@ -1,0 +1,292 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jake Potrebic <jake.m.potrebic@gmail.com>
+Date: Sat, 9 Jan 2021 22:21:25 -0800
+Subject: [PATCH] Include datapack in plugin
+
+
+diff --git a/src/main/java/io/papermc/paper/datapack/PluginDataPackFile.java b/src/main/java/io/papermc/paper/datapack/PluginDataPackFile.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..d8aa0919f31c44f68d64bc75a82adbb5eb5e2ea7
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/datapack/PluginDataPackFile.java
+@@ -0,0 +1,153 @@
++package io.papermc.paper.datapack;
++
++import com.google.common.base.Splitter;
++import com.google.common.collect.Lists;
++import com.google.common.collect.Sets;
++import io.papermc.paper.plugin.DatapackConfiguration;
++import net.minecraft.server.EnumResourcePackType;
++import net.minecraft.server.MinecraftKey;
++import net.minecraft.server.ResourceNotFoundException;
++import net.minecraft.server.ResourcePackAbstract;
++import net.minecraft.server.ResourcePackFile;
++import org.apache.commons.io.IOUtils;
++import org.bukkit.configuration.file.YamlConfiguration;
++import org.bukkit.plugin.InvalidDescriptionException;
++import org.bukkit.plugin.PluginDescriptionFile;
++
++import java.io.File;
++import java.io.IOException;
++import java.io.InputStream;
++import java.util.Collection;
++import java.util.Collections;
++import java.util.Enumeration;
++import java.util.HashSet;
++import java.util.List;
++import java.util.Locale;
++import java.util.Set;
++import java.util.function.Predicate;
++import java.util.jar.JarEntry;
++import java.util.jar.JarFile;
++import java.util.zip.ZipEntry;
++import java.util.zip.ZipFile;
++
++public class PluginDataPackFile extends ResourcePackFile {
++
++    public static final Splitter PLUGIN_DATA_PACK_FILE_SPLITTER = Splitter.on('/').omitEmptyStrings().limit(4);
++
++    private final String name;
++    private final DatapackConfiguration datapackConfiguration;
++
++    public PluginDataPackFile(File file) {
++        super(file);
++        try {
++            ZipEntry zipEntry = this.b().getEntry("plugin.yml");
++            PluginDescriptionFile pluginDescriptionFile = new PluginDescriptionFile(this.b().getInputStream(zipEntry));
++            this.name = pluginDescriptionFile.getName();
++            this.datapackConfiguration = pluginDescriptionFile.getDatapackConfiguration();
++        } catch (InvalidDescriptionException | IOException e) {
++            throw new IllegalArgumentException("Could not load datapack for " + file.getName(), e);
++        }
++    }
++
++    public boolean isDataPack() {
++        return !this.a(EnumResourcePackType.SERVER_DATA).isEmpty();
++    }
++
++    public String getName() {
++        return name;
++    }
++
++    public DatapackConfiguration getDatapackConfiguration() {
++        return datapackConfiguration;
++    }
++
++    @Override
++    protected ZipFile b() throws IOException {
++        if (c == null) {
++            c = new JarFile(this.a);
++        }
++        return c;
++    }
++
++    @Override
++    protected InputStream a(String s) throws IOException {
++        return super.a("datapack/" + s);
++    }
++
++    @Override
++    public boolean c(String s) {
++        return super.c("datapack/" + s);
++    }
++
++    // Copyright to Mojang (ResourcePackFile.java)
++    @Override
++    public Collection<MinecraftKey> a(EnumResourcePackType enumresourcepacktype, String s, String s1, int i, Predicate<String> predicate) {
++        ZipFile zipfile;
++
++        try {
++            zipfile = this.b();
++        } catch (IOException ioexception) {
++            return Collections.emptySet();
++        }
++
++        Enumeration<? extends ZipEntry> enumeration = zipfile.entries();
++        List<MinecraftKey> list = Lists.newArrayList();
++        String s2 = "datapack/" + enumresourcepacktype.a() + "/" + s + "/";
++        String s3 = s2 + s1 + "/";
++
++        while (enumeration.hasMoreElements()) {
++            ZipEntry zipentry = (ZipEntry) enumeration.nextElement();
++
++            if (!zipentry.isDirectory()) {
++                String s4 = zipentry.getName();
++
++                if (!s4.endsWith(".mcmeta") && s4.startsWith(s3)) {
++                    String s5 = s4.substring(s2.length());
++                    String[] astring = s5.split("/");
++
++                    if (astring.length >= i + 1 && predicate.test(astring[astring.length - 1])) {
++                        list.add(new MinecraftKey(s, s5));
++                    }
++                }
++            }
++        }
++
++        return list;
++    }
++
++    // Copyright to Mojang (ResourcePackFile.java)
++    @Override
++    public Set<String> a(EnumResourcePackType enumresourcepacktype) {
++        ZipFile zipfile;
++
++        try {
++            zipfile = this.b();
++        } catch (IOException ioexception) {
++            return Collections.emptySet();
++        }
++
++        Enumeration<? extends ZipEntry> enumeration = zipfile.entries();
++        HashSet hashset = Sets.newHashSet();
++
++        while (enumeration.hasMoreElements()) {
++            ZipEntry zipentry = (ZipEntry) enumeration.nextElement();
++            String s = zipentry.getName();
++
++            if (s.startsWith("datapack/" + enumresourcepacktype.a() + "/")) {
++                List<String> list = Lists.newArrayList(PLUGIN_DATA_PACK_FILE_SPLITTER.split(s));
++
++                if (list.size() > 2) {
++                    String s1 = (String) list.get(2);
++
++                    if (s1.equals(s1.toLowerCase(Locale.ROOT))) {
++                        hashset.add(s1);
++                    } else {
++                        this.d(s1);
++                    }
++                }
++            }
++        }
++
++        return hashset;
++    }
++}
+diff --git a/src/main/java/io/papermc/paper/datapack/PluginDataPackSource.java b/src/main/java/io/papermc/paper/datapack/PluginDataPackSource.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..9a9ba4f24fb00f110fa9aa24d46f4e1929f7e19f
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/datapack/PluginDataPackSource.java
+@@ -0,0 +1,40 @@
++package io.papermc.paper.datapack;
++
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.PackSource;
++import net.minecraft.server.ResourcePackFolder;
++import net.minecraft.server.ResourcePackLoader;
++import net.minecraft.server.ResourcePackSource;
++import org.bukkit.plugin.Plugin;
++
++import java.io.File;
++import java.io.FileFilter;
++import java.util.ArrayList;
++import java.util.HashSet;
++import java.util.List;
++import java.util.Set;
++import java.util.function.Consumer;
++
++public class PluginDataPackSource implements ResourcePackSource {
++
++    private final List<PluginDataPackFile> dataPackFiles;
++
++    private static final FileFilter packFilter = file -> file.isDirectory() && new File(file, "pack.mcmeta").isFile();
++
++    public PluginDataPackSource(List<PluginDataPackFile> pluginDataPackFiles) {
++        this.dataPackFiles = new ArrayList<>();
++        dataPackFiles.addAll(pluginDataPackFiles);
++        pluginDataPackFiles.clear();
++    }
++
++    @Override
++    public void a(Consumer<ResourcePackLoader> consumer, ResourcePackLoader.a resourcepackloader_a) {
++        Set<Plugin> invalid = new HashSet<>();
++        for (PluginDataPackFile packFile : dataPackFiles) {
++            ResourcePackLoader pack = ResourcePackLoader.create("plugin/" + packFile.getName(), false, () -> packFile, resourcepackloader_a, ResourcePackLoader.Position.BOTTOM, PackSource.d);
++            if (pack != null) {
++                consumer.accept(pack);
++            }
++        }
++    }
++}
+diff --git a/src/main/java/net/minecraft/server/Main.java b/src/main/java/net/minecraft/server/Main.java
+index 1c6dbd29c8414b3e33aedcc50bee5b5d9ce134d1..2160217e0f6a9f70a87654e20ead0f0710313bfe 100644
+--- a/src/main/java/net/minecraft/server/Main.java
++++ b/src/main/java/net/minecraft/server/Main.java
+@@ -20,6 +20,10 @@ import joptsimple.OptionSet;
+ import joptsimple.OptionSpec;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
++// Paper start
++import io.papermc.paper.datapack.PluginDataPackFile;
++import io.papermc.paper.datapack.PluginDataPackSource;
++// Paper end
+ 
+ public class Main {
+ 
+@@ -119,8 +123,32 @@ public class Main {
+             if (flag) {
+                 Main.LOGGER.warn("Safe mode active, only vanilla datapack will be loaded");
+             }
++            // Paper start
++            java.util.List<PluginDataPackFile> pluginPacks = new java.util.ArrayList<>();
++            File pluginFolder = (File) optionset.valueOf("plugins");
++            if (pluginFolder.exists()) {
++                java.util.List<PluginDataPackFile> tempPacks = java.nio.file.Files.list(pluginFolder.toPath()).filter(p -> java.nio.file.Files.isRegularFile(p) && p.toString().endsWith(".jar")).sorted().map(java.nio.file.Path::toFile).map(PluginDataPackFile::new).filter(PluginDataPackFile::isDataPack).collect(java.util.stream.Collectors.toList());
++                for (PluginDataPackFile packFile : tempPacks) {
++                    if (!packFile.getDatapackConfiguration().isOrdered()) {
++                        pluginPacks.add(packFile);
++                    } else {
++                        if (packFile.getDatapackConfiguration().getAfterPack() != null) {
++                            pluginPacks.add(java.util.stream.IntStream.range(0, pluginPacks.size()).filter(i -> pluginPacks.get(i).getName().equals(packFile.getName())).findFirst().orElse(pluginPacks.size() - 1) + 1, packFile);
++                        } else if (packFile.getDatapackConfiguration().getBeforePack() != null) {
++                            pluginPacks.add(java.util.stream.IntStream.range(0, pluginPacks.size()).filter(i -> pluginPacks.get(i).getName().equals(packFile.getName())).findFirst().orElse(pluginPacks.size()), packFile);
++                        } else if (packFile.getDatapackConfiguration().isLast()) {
++                            pluginPacks.add(packFile);
++                        } else if (packFile.getDatapackConfiguration().isFirst()) {
++                            pluginPacks.add(0, packFile);
++                        }
++                    }
++                }
++            } else {
++                pluginFolder.mkdir();
++            }
++            // Paper end
+ 
+-            ResourcePackRepository resourcepackrepository = new ResourcePackRepository(new ResourcePackSource[]{new ResourcePackSourceVanilla(), new ResourcePackSourceFolder(convertable_conversionsession.getWorldFolder(SavedFile.DATAPACKS).toFile(), PackSource.c)});
++            ResourcePackRepository resourcepackrepository = new ResourcePackRepository(new ResourcePackSource[]{new ResourcePackSourceVanilla(), new ResourcePackSourceFolder(convertable_conversionsession.getWorldFolder(SavedFile.DATAPACKS).toFile(), PackSource.c), new PluginDataPackSource(pluginPacks)}); // Paper
+             // CraftBukkit start
+             File bukkitDataPackFolder = new File(convertable_conversionsession.getWorldFolder(SavedFile.DATAPACKS).toFile(), "bukkit");
+             if (!bukkitDataPackFolder.exists()) {
+diff --git a/src/main/java/net/minecraft/server/ResourcePackFile.java b/src/main/java/net/minecraft/server/ResourcePackFile.java
+index a3b25af053d9b0d6ad275a66d0a7acd6cf7baf81..a6fd1c9d7ed27cdf623062d02fc0533545af6e52 100644
+--- a/src/main/java/net/minecraft/server/ResourcePackFile.java
++++ b/src/main/java/net/minecraft/server/ResourcePackFile.java
+@@ -21,13 +21,13 @@ import org.apache.commons.io.IOUtils;
+ public class ResourcePackFile extends ResourcePackAbstract {
+ 
+     public static final Splitter b = Splitter.on('/').omitEmptyStrings().limit(3);
+-    private ZipFile c;
++    protected ZipFile c; // Paper - private -> protected
+ 
+     public ResourcePackFile(File file) {
+         super(file);
+     }
+ 
+-    private ZipFile b() throws IOException {
++    protected ZipFile b() throws IOException { // Paper - public -> protected
+         if (this.c == null) {
+             this.c = new ZipFile(this.a);
+         }
+diff --git a/src/main/java/net/minecraft/server/ResourcePackLoader.java b/src/main/java/net/minecraft/server/ResourcePackLoader.java
+index 50c7980ff9a1101e7033e03ee5bd48be4285cf3e..b81be8abf7c6b598a3a38bcf52efcf13258f423e 100644
+--- a/src/main/java/net/minecraft/server/ResourcePackLoader.java
++++ b/src/main/java/net/minecraft/server/ResourcePackLoader.java
+@@ -23,6 +23,7 @@ public class ResourcePackLoader implements AutoCloseable {
+     private final boolean j;
+     private final PackSource k;
+ 
++    public static ResourcePackLoader create(String name, boolean force, Supplier<IResourcePack> packSupplier, ResourcePackLoader.a constructor, ResourcePackLoader.Position position, PackSource packSource) { return a(name, force, packSupplier, constructor, position, packSource); } // Paper - OBFHELPER
+     @Nullable
+     public static ResourcePackLoader a(String s, boolean flag, Supplier<IResourcePack> supplier, ResourcePackLoader.a resourcepackloader_a, ResourcePackLoader.Position resourcepackloader_position, PackSource packsource) {
+         try {
