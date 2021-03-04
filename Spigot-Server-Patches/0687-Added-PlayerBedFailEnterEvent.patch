@@ -1,0 +1,56 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jake Potrebic <jake.m.potrebic@gmail.com>
+Date: Thu, 24 Dec 2020 12:27:41 -0800
+Subject: [PATCH] Added PlayerBedFailEnterEvent
+
+
+diff --git a/src/main/java/net/minecraft/server/BlockBed.java b/src/main/java/net/minecraft/server/BlockBed.java
+index 24a5c64b65f0098b1395d352cc2f99bbbbaf9c94..526c7582aa0ce18abd4cfcb530a2a7693eb3a4ac 100644
+--- a/src/main/java/net/minecraft/server/BlockBed.java
++++ b/src/main/java/net/minecraft/server/BlockBed.java
+@@ -4,6 +4,8 @@ import java.util.List;
+ import java.util.Optional;
+ import javax.annotation.Nullable;
+ import org.apache.commons.lang3.ArrayUtils;
++import io.papermc.paper.event.player.PlayerBedFailEnterEvent; // Paper
++import io.papermc.paper.adventure.PaperAdventure; // Paper
+ 
+ public class BlockBed extends BlockFacingHorizontal implements ITileEntity {
+ 
+@@ -62,14 +64,22 @@ public class BlockBed extends BlockFacingHorizontal implements ITileEntity {
+                 BlockPosition finalblockposition = blockposition;
+                 // CraftBukkit end
+                 entityhuman.sleep(blockposition).ifLeft((entityhuman_enumbedresult) -> {
++                    // Paper start - PlayerBedFailEnterEvent
++                    if (entityhuman_enumbedresult != null) {
++                        PlayerBedFailEnterEvent event = new PlayerBedFailEnterEvent((org.bukkit.entity.Player) entityhuman.getBukkitEntity(), PlayerBedFailEnterEvent.FailReason.VALUES[entityhuman_enumbedresult.ordinal()], org.bukkit.craftbukkit.block.CraftBlock.at(world, finalblockposition), entityhuman_enumbedresult == EntityHuman.EnumBedResult.NOT_POSSIBLE_HERE, PaperAdventure.asAdventure(entityhuman_enumbedresult.getChatComponent()));
++                        if (!event.callEvent()) {
++                            return;
++                        }
++                        // Paper end
+                     // CraftBukkit start - handling bed explosion from below here
+-                    if (entityhuman_enumbedresult == EntityHuman.EnumBedResult.NOT_POSSIBLE_HERE) {
++                    if (event.getWillExplode()) { // Paper
+                         this.explodeBed(finaliblockdata, world, finalblockposition);
+                     } else
+                     // CraftBukkit end
+                     if (entityhuman_enumbedresult != null) {
+-                        entityhuman.a(entityhuman_enumbedresult.a(), true);
++                        entityhuman.a(PaperAdventure.asVanilla(event.getMessage()), true); // Paper
+                     }
++                    } // Paper
+ 
+                 });
+                 return EnumInteractionResult.SUCCESS;
+diff --git a/src/main/java/net/minecraft/server/EntityHuman.java b/src/main/java/net/minecraft/server/EntityHuman.java
+index cc2127b26e41182c14fa95afde878e9b5100a117..a3a529d0f70058f993c7a7b7d759ca112c6c2a0e 100644
+--- a/src/main/java/net/minecraft/server/EntityHuman.java
++++ b/src/main/java/net/minecraft/server/EntityHuman.java
+@@ -2124,6 +2124,7 @@ public abstract class EntityHuman extends EntityLiving {
+             this.g = ichatbasecomponent;
+         }
+ 
++        public @Nullable IChatBaseComponent getChatComponent() { return this.a(); }; // Paper - OBFHELPER
+         @Nullable
+         public IChatBaseComponent a() {
+             return this.g;
