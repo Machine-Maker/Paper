@@ -1,0 +1,57 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jake Potrebic <jake.m.potrebic@gmail.com>
+Date: Fri, 12 Mar 2021 19:20:03 -0800
+Subject: [PATCH] Hand-specific PlayerAnimationEvent
+
+
+diff --git a/src/main/java/org/bukkit/event/player/PlayerAnimationEvent.java b/src/main/java/org/bukkit/event/player/PlayerAnimationEvent.java
+index 6cd236cd1fa10ec37e6e0228c7bbd4415b39399d..5e30c3e8316d42c13262419ef4d40cbb011d558d 100644
+--- a/src/main/java/org/bukkit/event/player/PlayerAnimationEvent.java
++++ b/src/main/java/org/bukkit/event/player/PlayerAnimationEvent.java
+@@ -18,12 +18,19 @@ public class PlayerAnimationEvent extends PlayerEvent implements Cancellable {
+      *
+      * @param player The player instance
+      */
++    @Deprecated // Paper
+     public PlayerAnimationEvent(@NotNull final Player player) {
+         super(player);
+ 
+         // Only supported animation type for now:
+         animationType = PlayerAnimationType.ARM_SWING;
+     }
++    // Paper start
++    public PlayerAnimationEvent(@NotNull final Player player, @NotNull PlayerAnimationType animationType) {
++        super(player);
++        this.animationType = animationType;
++    }
++    // Paper end
+ 
+     /**
+      * Get the type of this animation event
+diff --git a/src/main/java/org/bukkit/event/player/PlayerAnimationType.java b/src/main/java/org/bukkit/event/player/PlayerAnimationType.java
+index ea4bf26f0c953814bb852614093cff00dad38319..81ba3cfa3b5a46ff813d91705920b20ffc4006c7 100644
+--- a/src/main/java/org/bukkit/event/player/PlayerAnimationType.java
++++ b/src/main/java/org/bukkit/event/player/PlayerAnimationType.java
+@@ -4,5 +4,21 @@ package org.bukkit.event.player;
+  * Different types of player animations
+  */
+ public enum PlayerAnimationType {
+-    ARM_SWING
++    // Paper start
++    /**
++     * @deprecated in favour of left and right arm specific values.
++     */
++    @Deprecated // Paper
++    ARM_SWING,
++
++    /**
++     * Main hand arm swing
++     */
++    MAIN_HAND_ARM_SWING,
++
++    /**
++     * Off hand arm swing
++     */
++    OFFHAND_ARM_SWING,
++    // Paper end
+ }

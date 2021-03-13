@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jake Potrebic <jake.m.potrebic@gmail.com>
+Date: Fri, 12 Mar 2021 19:22:21 -0800
+Subject: [PATCH] Improving PlayerAnimationEvent
+
+
+diff --git a/src/main/java/net/minecraft/server/PacketPlayInArmAnimation.java b/src/main/java/net/minecraft/server/PacketPlayInArmAnimation.java
+index ff636322a634c93a0ef58cc9c9961a4e7721c3ab..e1638308472558d6b190bfc420abdac4d7bf581f 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayInArmAnimation.java
++++ b/src/main/java/net/minecraft/server/PacketPlayInArmAnimation.java
+@@ -26,6 +26,7 @@ public class PacketPlayInArmAnimation implements Packet<PacketListenerPlayIn> {
+         packetlistenerplayin.a(this);
+     }
+ 
++    public EnumHand getHand() { return b(); } // Paper - OBFHELPER
+     public EnumHand b() {
+         return this.a;
+     }
+diff --git a/src/main/java/net/minecraft/server/PlayerConnection.java b/src/main/java/net/minecraft/server/PlayerConnection.java
+index 3435eb1584546d2963324372ddab1645dcf6327a..f0f2746468121ec5553c82bce8515eab06876356 100644
+--- a/src/main/java/net/minecraft/server/PlayerConnection.java
++++ b/src/main/java/net/minecraft/server/PlayerConnection.java
+@@ -2062,7 +2062,8 @@ public class PlayerConnection implements PacketListenerPlayIn {
+         }
+ 
+         // Arm swing animation
+-        PlayerAnimationEvent event = new PlayerAnimationEvent(this.getPlayer());
++        org.bukkit.event.player.PlayerAnimationType animationType = packetplayinarmanimation.getHand() == net.minecraft.server.EnumHand.MAIN_HAND ? org.bukkit.event.player.PlayerAnimationType.MAIN_HAND_ARM_SWING : org.bukkit.event.player.PlayerAnimationType.OFFHAND_ARM_SWING; // Paper
++        PlayerAnimationEvent event = new PlayerAnimationEvent(this.getPlayer(), animationType); // Paper
+         this.server.getPluginManager().callEvent(event);
+ 
+         if (event.isCancelled()) return;
