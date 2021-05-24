@@ -1,0 +1,701 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jake Potrebic <jake.m.potrebic@gmail.com>
+Date: Sun, 23 May 2021 21:29:44 -0700
+Subject: [PATCH] work on implementing SecureSeed
+
+
+diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
+index efc1e42d606e1c9feb1a4871c0714933ae92a1b2..9ba7cabff9228ce51a30a3e235e26cf8d374e798 100644
+--- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
++++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
+@@ -486,4 +486,9 @@ public class PaperConfig {
+         enableBrigadierConsoleHighlighting = getBoolean("settings.console.enable-brigadier-highlighting", enableBrigadierConsoleHighlighting);
+         enableBrigadierConsoleCompletions = getBoolean("settings.console.enable-brigadier-completions", enableBrigadierConsoleCompletions);
+     }
++
++    public static boolean useSecureSeed = false;
++    private static void useSecureSeed() {
++        useSecureSeed = getBoolean("settings.secure-seed", useSecureSeed);
++    }
+ }
+diff --git a/src/main/java/net/earthcomputer/secureseed/Hashing.java b/src/main/java/net/earthcomputer/secureseed/Hashing.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..90dae26e51331f87788e00a957c771d4837b6b04
+--- /dev/null
++++ b/src/main/java/net/earthcomputer/secureseed/Hashing.java
+@@ -0,0 +1,74 @@
++package net.earthcomputer.secureseed;
++
++public class Hashing {
++    // https://en.wikipedia.org/wiki/BLAKE_(hash_function)
++    // https://github.com/bcgit/bc-java/blob/master/core/src/main/java/org/bouncycastle/crypto/digests/Blake2bDigest.java
++
++    private final static long[] blake2b_IV = {
++        0x6a09e667f3bcc908L, 0xbb67ae8584caa73bL, 0x3c6ef372fe94f82bL,
++        0xa54ff53a5f1d36f1L, 0x510e527fade682d1L, 0x9b05688c2b3e6c1fL,
++        0x1f83d9abfb41bd6bL, 0x5be0cd19137e2179L
++    };
++
++    private final static byte[][] blake2b_sigma = {
++        {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
++        {14, 10, 4, 8, 9, 15, 13, 6, 1, 12, 0, 2, 11, 7, 5, 3},
++        {11, 8, 12, 0, 5, 2, 15, 13, 10, 14, 3, 6, 7, 1, 9, 4},
++        {7, 9, 3, 1, 13, 12, 11, 14, 2, 6, 5, 10, 4, 0, 15, 8},
++        {9, 0, 5, 7, 2, 4, 10, 15, 14, 1, 11, 12, 6, 8, 3, 13},
++        {2, 12, 6, 10, 0, 11, 8, 3, 4, 13, 7, 5, 15, 14, 1, 9},
++        {12, 5, 1, 15, 14, 13, 4, 10, 0, 7, 6, 3, 9, 2, 8, 11},
++        {13, 11, 7, 14, 12, 1, 3, 9, 5, 0, 15, 4, 8, 6, 2, 10},
++        {6, 15, 14, 9, 11, 3, 0, 8, 12, 2, 13, 7, 1, 4, 10, 5},
++        {10, 2, 8, 4, 7, 6, 1, 5, 15, 11, 9, 14, 3, 12, 13, 0},
++        {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
++        {14, 10, 4, 8, 9, 15, 13, 6, 1, 12, 0, 2, 11, 7, 5, 3}
++    };
++
++    public static long[] hashWorldSeed(long[] worldSeed) {
++        long[] result = blake2b_IV.clone();
++        result[0] ^= 0x01010040;
++        hash(worldSeed, result, new long[16], 0, false);
++        return result;
++    }
++
++    public static void hash(long[] message, long[] chainValue, long[] internalState, long messageOffset, boolean isFinal) {
++        assert message.length == 16;
++        assert chainValue.length == 8;
++        assert internalState.length == 16;
++
++        System.arraycopy(chainValue, 0, internalState, 0, chainValue.length);
++        System.arraycopy(blake2b_IV, 0, internalState, chainValue.length, 4);
++        internalState[12] = messageOffset ^ blake2b_IV[4];
++        internalState[13] = blake2b_IV[5];
++        if (isFinal) internalState[14] = ~blake2b_IV[6];
++        internalState[15] = blake2b_IV[7];
++
++        for (int round = 0; round < 12; round++) {
++            G(message[blake2b_sigma[round][0]], message[blake2b_sigma[round][1]], 0, 4, 8, 12, internalState);
++            G(message[blake2b_sigma[round][2]], message[blake2b_sigma[round][3]], 1, 5, 9, 13, internalState);
++            G(message[blake2b_sigma[round][4]], message[blake2b_sigma[round][5]], 2, 6, 10, 14, internalState);
++            G(message[blake2b_sigma[round][6]], message[blake2b_sigma[round][7]], 3, 7, 11, 15, internalState);
++            G(message[blake2b_sigma[round][8]], message[blake2b_sigma[round][9]], 0, 5, 10, 15, internalState);
++            G(message[blake2b_sigma[round][10]], message[blake2b_sigma[round][11]], 1, 6, 11, 12, internalState);
++            G(message[blake2b_sigma[round][12]], message[blake2b_sigma[round][13]], 2, 7, 8, 13, internalState);
++            G(message[blake2b_sigma[round][14]], message[blake2b_sigma[round][15]], 3, 4, 9, 14, internalState);
++        }
++
++        for (int i = 0; i < 8; i++) {
++            chainValue[i] ^= internalState[i] ^ internalState[i + 8];
++        }
++    }
++
++    private static void G(long m1, long m2, int posA, int posB, int posC, int posD, long[] internalState)
++    {
++        internalState[posA] = internalState[posA] + internalState[posB] + m1;
++        internalState[posD] = Long.rotateRight(internalState[posD] ^ internalState[posA], 32);
++        internalState[posC] = internalState[posC] + internalState[posD];
++        internalState[posB] = Long.rotateRight(internalState[posB] ^ internalState[posC], 24); // replaces 25 of BLAKE
++        internalState[posA] = internalState[posA] + internalState[posB] + m2;
++        internalState[posD] = Long.rotateRight(internalState[posD] ^ internalState[posA], 16);
++        internalState[posC] = internalState[posC] + internalState[posD];
++        internalState[posB] = Long.rotateRight(internalState[posB] ^ internalState[posC], 63); // replaces 11 of BLAKE
++    }
++}
+diff --git a/src/main/java/net/earthcomputer/secureseed/SecureChunkRandom.java b/src/main/java/net/earthcomputer/secureseed/SecureChunkRandom.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..97bfac7f60261084ae36f7006e1bf07805443629
+--- /dev/null
++++ b/src/main/java/net/earthcomputer/secureseed/SecureChunkRandom.java
+@@ -0,0 +1,10 @@
++package net.earthcomputer.secureseed;
++
++public interface SecureChunkRandom {
++
++    void setSecureSeed(long[] worldSeed, int x, int z, int dimension, int typeSalt, long salt);
++
++    long getInsecureSeed();
++
++    void setInsecure();
++}
+diff --git a/src/main/java/net/earthcomputer/secureseed/SecureSeedGlobals.java b/src/main/java/net/earthcomputer/secureseed/SecureSeedGlobals.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..11aa276dd7a14e3917c0658d3d8e5f6ed2124bf7
+--- /dev/null
++++ b/src/main/java/net/earthcomputer/secureseed/SecureSeedGlobals.java
+@@ -0,0 +1,87 @@
++package net.earthcomputer.secureseed;
++
++import com.google.common.collect.Iterables;
++import net.minecraft.server.level.WorldServer;
++
++import java.math.BigInteger;
++import java.security.SecureRandom;
++
++public class SecureSeedGlobals {
++    public static final int WORLD_SEED_LONGS = 16;
++    public static final int WORLD_SEED_BITS = WORLD_SEED_LONGS * 64;
++
++    public static final long[] worldSeed = new long[WORLD_SEED_LONGS];
++    public static final ThreadLocal<Integer> dimension = ThreadLocal.withInitial(() -> 0);
++
++    public static final int TERRAIN_SALT = 0;
++    public static final int POPULATION_SALT = 1;
++    public static final int DECORATION_SALT = 2;
++    public static final int CARVER_SALT = 3;
++    public static final int REGION_SALT = 4;
++    public static final int SLIME_CHUNK_SALT = 5;
++    public static final int BIOME_SALT = 6;
++    public static final int BIOME_NOISE_SALT = 7;
++    public static final int SPAWN_POINT_SALT = 8;
++    public static final int END_PILLAR_SALT = 9;
++    public static final int STRONGHOLD_LOCATION_SALT = 10;
++    public static final int PILLAGER_OUTPOST_SALT = 11;
++    public static final int END_GATEWAY_ORDER_SALT = 12;
++    public static final int REGION_CARVER_SALT = 13;
++    public static final int CAVE_CARVER_SALT = 14;
++    public static final int RAVINE_CARVER_SALT = 15;
++    public static final int OCTAVE_NOISE_SALT = 16;
++    public static final int OCTAVE_SIMPLEX_NOISE_SALT = 17;
++    public static final int MULTI_NOISE_BIOME_SALT = 18;
++    public static final int END_BIOME_NOISE_SALT = 19;
++    public static final int TERRAIN_NOISE_SALT = 20;
++    public static final int SURFACE_BUILDER_SALT = 21;
++
++    public static void setupGlobals(WorldServer world) {
++        long[] seed = world.getMinecraftServer().getSaveData().getGeneratorSettings().getSecureSeed();
++        System.arraycopy(seed, 0, worldSeed, 0, WORLD_SEED_LONGS);
++        int worldIndex = Iterables.indexOf(world.getMinecraftServer().getWorldResourceKeys(), it -> it == world.getDimensionKey());
++        if (worldIndex == -1) worldIndex = world.getMinecraftServer().getWorldResourceKeys().size(); // if we are in world construction it may not have been added to the map yet
++        dimension.set(worldIndex);
++    }
++
++    public static long[] createRandomWorldSeed() {
++        long[] seed = new long[WORLD_SEED_LONGS];
++        SecureRandom rand = new SecureRandom();
++        for (int i = 0; i < WORLD_SEED_LONGS; i++) {
++            seed[i] = rand.nextLong();
++        }
++        return seed;
++    }
++
++    public static long[] parseSeed(String seedStr) {
++        long[] seed = new long[WORLD_SEED_LONGS];
++        try {
++            BigInteger seedBigInt = new BigInteger(seedStr);
++            if (seedBigInt.signum() < 0) {
++                seedBigInt = seedBigInt.and(BigInteger.ONE.shiftLeft(WORLD_SEED_BITS).subtract(BigInteger.ONE));
++            }
++            for (int i = 0; i < WORLD_SEED_LONGS; i++) {
++                BigInteger[] divRem = seedBigInt.divideAndRemainder(BigInteger.ONE.shiftLeft(64));
++                seed[i] = divRem[1].longValue();
++                seedBigInt = divRem[0];
++            }
++        } catch (NumberFormatException e) {
++            seed[0] = seedStr.hashCode();
++        }
++
++        return seed;
++    }
++
++    public static String seedToString(long[] seed) {
++        BigInteger seedBigInt = BigInteger.ZERO;
++        for (int i = WORLD_SEED_LONGS - 1; i >= 0; i--) {
++            BigInteger val = BigInteger.valueOf(seed[i]);
++            if (val.signum() < 0) {
++                val = val.add(BigInteger.ONE.shiftLeft(64));
++            }
++            seedBigInt = seedBigInt.shiftLeft(64).add(val);
++        }
++
++        return seedBigInt.toString();
++    }
++}
+diff --git a/src/main/java/net/earthcomputer/secureseed/SecureSeededRandom.java b/src/main/java/net/earthcomputer/secureseed/SecureSeededRandom.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..fea44cb003345b4be5bac2640a59c4206cbfde1c
+--- /dev/null
++++ b/src/main/java/net/earthcomputer/secureseed/SecureSeededRandom.java
+@@ -0,0 +1,206 @@
++package net.earthcomputer.secureseed;
++
++import net.earthcomputer.secureseed.world.SecureWorldInfo;
++import net.minecraft.util.MathHelper;
++import net.minecraft.world.level.levelgen.SeededRandom;
++
++import java.util.Arrays;
++import java.util.Random;
++
++public class SecureSeededRandom extends SeededRandom implements SecureChunkRandom {
++
++    // world seed (64 bytes) = 64 bytes
++    // x (4 bytes), z (4 bytes), dimension (4 bytes), type salt (4 bytes), salt (8 bytes), counter (8 bytes), padding (32 bytes) = 64 bytes
++
++    // hash the world seed to guard against badly chosen world seeds
++    private static final long[] HASHED_ZERO_SEED = Hashing.hashWorldSeed(new long[SecureWorldInfo.WORLD_SEED_LONGS]);
++    private static final ThreadLocal<long[]> LAST_SEEN_WORLD_SEED = ThreadLocal.withInitial(() -> new long[SecureWorldInfo.WORLD_SEED_LONGS]);
++    private static final ThreadLocal<long[]> HASHED_WORLD_SEED = ThreadLocal.withInitial(() -> HASHED_ZERO_SEED);
++
++    private final long[] worldSeed = new long[SecureWorldInfo.WORLD_SEED_LONGS];
++    private final long[] randomBits = new long[8];
++    private int randomBitIndex;
++    private static final int MAX_RANDOM_BIT_INDEX = 64 * 8;
++    private static final int LOG2_MAX_RANDOM_BIT_INDEX = 9;
++    private long counter = 0;
++    private final long[] message = new long[16];
++    private final long[] cachedInternalState = new long[16];
++
++    private boolean secure = true;
++    private long insecureSeed;
++
++    // sanity check
++    private boolean secureSeeded = false;
++    private final SecureWorldInfo worldInfo;
++
++    public SecureSeededRandom(long insecureSeed, SecureWorldInfo worldInfo) {
++        super(insecureSeed);
++        this.insecureSeed = insecureSeed;
++        this.worldInfo = worldInfo;
++    }
++
++    private long[] getHashedWorldSeed() {
++        if (!Arrays.equals(worldSeed, LAST_SEEN_WORLD_SEED.get())) {
++            HASHED_WORLD_SEED.set(Hashing.hashWorldSeed(worldSeed));
++            System.arraycopy(worldSeed, 0, LAST_SEEN_WORLD_SEED.get(), 0, SecureWorldInfo.WORLD_SEED_LONGS);
++        }
++        return HASHED_WORLD_SEED.get();
++    }
++
++    private void moreRandomBits() {
++        message[3] = counter++;
++        System.arraycopy(getHashedWorldSeed(), 0, randomBits, 0, 8);
++        Hashing.hash(message, randomBits, cachedInternalState, 64, true);
++    }
++
++    @Override
++    public void setSecureSeed(long[] worldSeed, int x, int z, int dimension, int typeSalt, long salt) {
++        System.arraycopy(worldSeed, 0, this.worldSeed, 0, SecureWorldInfo.WORLD_SEED_LONGS);
++        message[0] = ((long) x << 32) | ((long) z & 0xffffffffL);
++        message[1] = ((long) dimension << 32) | ((long) salt & 0xffffffffL);
++        message[2] = typeSalt;
++        message[3] = counter = 0;
++        randomBitIndex = MAX_RANDOM_BIT_INDEX;
++        secureSeeded = true;
++    }
++
++    @Override
++    public long getInsecureSeed() {
++        return this.insecureSeed;
++    }
++
++    @Override
++    public void setInsecure() {
++        this.secure = false;
++    }
++
++    private long getBits(int count) {
++        if (!secureSeeded) {
++            throw new IllegalStateException("Using unseeded ChunkRandom");
++        }
++
++        if (randomBitIndex >= MAX_RANDOM_BIT_INDEX) {
++            moreRandomBits();
++            randomBitIndex -= MAX_RANDOM_BIT_INDEX;
++        }
++
++        int alignment = randomBitIndex & 63;
++        if ((randomBitIndex >>> 6) == ((randomBitIndex + count) >>> 6)) {
++            long result = (randomBits[randomBitIndex >>> 6] >>> alignment) & ((1L << count) - 1);
++            randomBitIndex += count;
++            return result;
++        } else {
++            long result = (randomBits[randomBitIndex >>> 6] >>> alignment) & ((1L << (64 - alignment)) - 1);
++            randomBitIndex += count;
++            if (randomBitIndex >= MAX_RANDOM_BIT_INDEX) {
++                moreRandomBits();
++                randomBitIndex -= MAX_RANDOM_BIT_INDEX;
++            }
++            alignment = randomBitIndex & 63;
++            result <<= alignment;
++            result |= (randomBits[randomBitIndex >>> 6] >>> (64 - alignment)) & ((1L << alignment) - 1);
++
++            return result;
++        }
++    }
++
++    @Override
++    protected int next(int bits) {
++        if (this.secure) {
++            return (int) getBits(bits);
++        } else {
++            return super.next(bits);
++        }
++    }
++
++    @Override // consume
++    public void a(int count) {
++        if (!this.secure) {
++            super.a(count);
++            return;
++        }
++
++        randomBitIndex += count;
++        if (randomBitIndex >= MAX_RANDOM_BIT_INDEX * 2) {
++            randomBitIndex -= MAX_RANDOM_BIT_INDEX;
++            counter += randomBitIndex >>> LOG2_MAX_RANDOM_BIT_INDEX;
++            randomBitIndex &= MAX_RANDOM_BIT_INDEX - 1;
++            randomBitIndex += MAX_RANDOM_BIT_INDEX;
++        }
++    }
++
++    @Override
++    public int nextInt(int bound) {
++        if (!this.secure) {
++            return super.nextInt(bound);
++        }
++
++        int bits = MathHelper.e(bound);
++        int result;
++        do {
++            result = (int) getBits(bits);
++        } while (result >= bound);
++
++        return result;
++    }
++
++    @Override
++    public long nextLong() {
++        if (!this.secure) {
++            return super.nextLong();
++        }
++
++        return getBits(64);
++    }
++
++    @Override
++    public double nextDouble() {
++        if (!this.secure) {
++            return super.nextDouble();
++        }
++
++        return getBits(53) * 0x1.0p-53;
++    }
++
++    @Override
++    public synchronized void setSeed(long seed) {
++        secureSeeded = false;
++        super.setSeed(seed);
++    }
++
++    @Override // setTerrainSeed
++    public long a(int chunkX, int chunkZ) {
++        this.setSecureSeed(worldInfo.getWorldSeed(), chunkX, chunkZ, worldInfo.getDimension().get(), SecureWorldInfo.TERRAIN_SALT, 0);
++        return 0;
++    }
++
++    @Override // setPopulationSeed
++    public long a(long worldSeed, int blockX, int blockZ) {
++        setSecureSeed(worldInfo.getWorldSeed(), blockX, blockZ, worldInfo.getDimension().get(), SecureWorldInfo.POPULATION_SALT, 0);
++        return ((long) blockX << 32) | ((long) blockZ & 0xffffffffL);
++    }
++
++    @Override // setDecoratorSpeed
++    public long b(long populationSeed, int index, int step) {
++        setSecureSeed(worldInfo.getWorldSeed(), (int) (populationSeed >> 32), (int) populationSeed, worldInfo.getDimension().get(), SecureWorldInfo.DECORATION_SALT, index + 10000 * step);
++        return 0;
++    }
++
++    @Override // setCarverSpeed
++    public long c(long worldSeed, int chunkX, int chunkZ) {
++        setSecureSeed(worldInfo.getWorldSeed(), chunkX, chunkZ, worldInfo.getDimension().get(), SecureWorldInfo.CARVER_SALT, 0);
++        return 0;
++    }
++
++    @Override // setRegionSeed
++    public long a(long worldSeed, int regionX, int regionZ, int salt) {
++        setSecureSeed(worldInfo.getWorldSeed(), regionX, regionZ, worldInfo.getDimension().get(), SecureWorldInfo.REGION_SALT, salt);
++        return 0;
++    }
++
++    public static Random getSlimeRandom(int chunkX, int chunkZ, long worldSeed, long scrambler, SecureWorldInfo worldInfo) {
++        SecureSeededRandom rand = new SecureSeededRandom(0, worldInfo);
++        rand.setSecureSeed(worldInfo.getWorldSeed(), chunkX, chunkZ, worldInfo.getDimension().get(), SecureWorldInfo.SLIME_CHUNK_SALT, 0);
++        return rand;
++    }
++}
+diff --git a/src/main/java/net/earthcomputer/secureseed/SecureWorldChunk.java b/src/main/java/net/earthcomputer/secureseed/SecureWorldChunk.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..b56bf5184a5d91415b6a9a4998b5bd6cf206b968
+--- /dev/null
++++ b/src/main/java/net/earthcomputer/secureseed/SecureWorldChunk.java
+@@ -0,0 +1,6 @@
++package net.earthcomputer.secureseed;
++
++public interface SecureWorldChunk {
++
++    boolean isSecureSlimeChunk();
++}
+diff --git a/src/main/java/net/earthcomputer/secureseed/world/SecureWorldInfo.java b/src/main/java/net/earthcomputer/secureseed/world/SecureWorldInfo.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..9692a03c8e6abea69be1db9a1597d322d56d5d9b
+--- /dev/null
++++ b/src/main/java/net/earthcomputer/secureseed/world/SecureWorldInfo.java
+@@ -0,0 +1,96 @@
++package net.earthcomputer.secureseed.world;
++
++import com.google.common.collect.Iterables;
++import net.minecraft.server.level.WorldServer;
++
++import java.math.BigInteger;
++import java.security.SecureRandom;
++
++public class SecureWorldInfo {
++
++    public static final int WORLD_SEED_LONGS = 16;
++    public static final int WORLD_SEED_BITS = WORLD_SEED_LONGS * 64;
++
++    public static final int TERRAIN_SALT = 0;
++    public static final int POPULATION_SALT = 1;
++    public static final int DECORATION_SALT = 2;
++    public static final int CARVER_SALT = 3;
++    public static final int REGION_SALT = 4;
++    public static final int SLIME_CHUNK_SALT = 5;
++    public static final int BIOME_SALT = 6;
++    public static final int BIOME_NOISE_SALT = 7;
++    public static final int SPAWN_POINT_SALT = 8;
++    public static final int END_PILLAR_SALT = 9;
++    public static final int STRONGHOLD_LOCATION_SALT = 10;
++    public static final int PILLAGER_OUTPOST_SALT = 11;
++    public static final int END_GATEWAY_ORDER_SALT = 12;
++    public static final int REGION_CARVER_SALT = 13;
++    public static final int CAVE_CARVER_SALT = 14;
++    public static final int RAVINE_CARVER_SALT = 15;
++    public static final int OCTAVE_NOISE_SALT = 16;
++    public static final int OCTAVE_SIMPLEX_NOISE_SALT = 17;
++    public static final int MULTI_NOISE_BIOME_SALT = 18;
++    public static final int END_BIOME_NOISE_SALT = 19;
++    public static final int TERRAIN_NOISE_SALT = 20;
++    public static final int SURFACE_BUILDER_SALT = 21;
++
++    private final long[] worldSeed = new long[WORLD_SEED_LONGS];
++    private final ThreadLocal<Integer> dimension = ThreadLocal.withInitial(() -> 0);
++
++    public SecureWorldInfo(WorldServer world) {
++        long[] seed = world.worldDataServer.getGeneratorSettings().getSecureSeed();
++        System.arraycopy(seed, 0, worldSeed, 0, WORLD_SEED_LONGS);
++        int worldIndex = Iterables.indexOf(world.getMinecraftServer().getWorldResourceKeys(), it -> it == world.getDimensionKey());
++        if (worldIndex == -1) worldIndex = world.getMinecraftServer().getWorldResourceKeys().size(); // if we are in world construction it may not have been added to the map yet
++        dimension.set(worldIndex);
++    }
++
++    public long[] getWorldSeed() {
++        return worldSeed;
++    }
++
++    public ThreadLocal<Integer> getDimension() {
++        return dimension;
++    }
++
++    public static long[] createRandomWorldSeed() {
++        long[] seed = new long[WORLD_SEED_LONGS];
++        SecureRandom rand = new SecureRandom();
++        for (int i = 0; i < WORLD_SEED_LONGS; i++) {
++            seed[i] = rand.nextLong();
++        }
++        return seed;
++    }
++
++    public static long[] parseSeed(String seedStr) {
++        long[] seed = new long[WORLD_SEED_LONGS];
++        try {
++            BigInteger seedBigInt = new BigInteger(seedStr);
++            if (seedBigInt.signum() < 0) {
++                seedBigInt = seedBigInt.and(BigInteger.ONE.shiftLeft(WORLD_SEED_BITS).subtract(BigInteger.ONE));
++            }
++            for (int i = 0; i < WORLD_SEED_LONGS; i++) {
++                BigInteger[] divRem = seedBigInt.divideAndRemainder(BigInteger.ONE.shiftLeft(64));
++                seed[i] = divRem[1].longValue();
++                seedBigInt = divRem[0];
++            }
++        } catch (NumberFormatException e) {
++            seed[0] = seedStr.hashCode();
++        }
++
++        return seed;
++    }
++
++    public static String seedToString(long[] seed) {
++        BigInteger seedBigInt = BigInteger.ZERO;
++        for (int i = WORLD_SEED_LONGS - 1; i >= 0; i--) {
++            BigInteger val = BigInteger.valueOf(seed[i]);
++            if (val.signum() < 0) {
++                val = val.add(BigInteger.ONE.shiftLeft(64));
++            }
++            seedBigInt = seedBigInt.shiftLeft(64).add(val);
++        }
++
++        return seedBigInt.toString();
++    }
++}
+diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
+index 03823e95e1fbf465ff5b3b2c5743f1beb25de083..a8d962631d31cc495dbf1a1acc36ed3f44c705a0 100644
+--- a/src/main/java/net/minecraft/server/MinecraftServer.java
++++ b/src/main/java/net/minecraft/server/MinecraftServer.java
+@@ -1558,6 +1558,7 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
+         return (WorldServer) this.worldServer.get(resourcekey);
+     }
+ 
++    public Set<ResourceKey<World>> getWorldResourceKeys() { return this.F(); } // Paper - OBFHELPER
+     public Set<ResourceKey<World>> F() {
+         return this.worldServer.keySet();
+     }
+diff --git a/src/main/java/net/minecraft/server/level/ChunkProviderServer.java b/src/main/java/net/minecraft/server/level/ChunkProviderServer.java
+index c5e54c519e1f686761faa53b5e9579c514a65332..e288ce35fdff01205b8213bc0d849770e3d6bda6 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkProviderServer.java
++++ b/src/main/java/net/minecraft/server/level/ChunkProviderServer.java
+@@ -909,6 +909,7 @@ public class ChunkProviderServer extends IChunkProvider {
+     }
+ 
+     public ChunkGenerator getChunkGenerator() {
++        net.earthcomputer.secureseed.SecureSeedGlobals.setupGlobals(world); // Paper
+         return this.chunkGenerator;
+     }
+ 
+diff --git a/src/main/java/net/minecraft/server/level/WorldServer.java b/src/main/java/net/minecraft/server/level/WorldServer.java
+index f68a252378a94c8fcab622d2d89d738aceab45a4..73b8749acbc989e11e9584c063c1e26beae9e7b5 100644
+--- a/src/main/java/net/minecraft/server/level/WorldServer.java
++++ b/src/main/java/net/minecraft/server/level/WorldServer.java
+@@ -322,6 +322,7 @@ public class WorldServer extends World implements GeneratorAccessSeed {
+     // Add env and gen to constructor, WorldData -> WorldDataServer
+     public WorldServer(MinecraftServer minecraftserver, Executor executor, Convertable.ConversionSession convertable_conversionsession, IWorldDataServer iworlddataserver, ResourceKey<World> resourcekey, DimensionManager dimensionmanager, WorldLoadListener worldloadlistener, ChunkGenerator chunkgenerator, boolean flag, long i, List<MobSpawner> list, boolean flag1, org.bukkit.World.Environment env, org.bukkit.generator.ChunkGenerator gen) {
+         super(iworlddataserver, resourcekey, dimensionmanager, minecraftserver::getMethodProfiler, false, flag, i, gen, env, executor); // Paper pass executor
++        net.earthcomputer.secureseed.SecureSeedGlobals.setupGlobals(this); // Paper
+         this.pvpMode = minecraftserver.getPVP();
+         convertable = convertable_conversionsession;
+         uuid = WorldUUID.getUUID(convertable_conversionsession.folder.toFile());
+diff --git a/src/main/java/net/minecraft/world/entity/monster/EntitySlime.java b/src/main/java/net/minecraft/world/entity/monster/EntitySlime.java
+index 0af0b232ff1b6f1d58cf3fb543d32bd108be0af7..b635dc9ac82e237f321cd02fc451d026eb4289cc 100644
+--- a/src/main/java/net/minecraft/world/entity/monster/EntitySlime.java
++++ b/src/main/java/net/minecraft/world/entity/monster/EntitySlime.java
+@@ -340,7 +340,7 @@ public class EntitySlime extends EntityInsentient implements IMonster {
+             }
+ 
+             ChunkCoordIntPair chunkcoordintpair = new ChunkCoordIntPair(blockposition);
+-            boolean flag = generatoraccess.getMinecraftWorld().paperConfig.allChunksAreSlimeChunks || SeededRandom.a(chunkcoordintpair.x, chunkcoordintpair.z, ((GeneratorAccessSeed) generatoraccess).getSeed(), generatoraccess.getMinecraftWorld().spigotConfig.slimeSeed).nextInt(10) == 0; // Spigot // Paper
++            boolean flag = !com.destroystokyo.paper.PaperConfig.useSecureSeed ? generatoraccess.getMinecraftWorld().paperConfig.allChunksAreSlimeChunks || SeededRandom.a(chunkcoordintpair.x, chunkcoordintpair.z, ((GeneratorAccessSeed) generatoraccess).getSeed(), generatoraccess.getMinecraftWorld().spigotConfig.slimeSeed).nextInt(10) == 0 : ((net.minecraft.world.level.chunk.Chunk) generatoraccess.getChunkAt(chunkcoordintpair.x, chunkcoordintpair.z)).isSlimeChunk(); // Spigot // Paper
+ 
+             if (random.nextInt(10) == 0 && flag && blockposition.getY() < 40) {
+                 return a(entitytypes, generatoraccess, enummobspawn, blockposition, random);
+diff --git a/src/main/java/net/minecraft/world/level/chunk/Chunk.java b/src/main/java/net/minecraft/world/level/chunk/Chunk.java
+index 0727b12b5ff146b4efa9204bf4f495f2f1aa20b9..7c6bcaf3ac9ffd5bfc8eb03a9671e7fbfedeba4c 100644
+--- a/src/main/java/net/minecraft/world/level/chunk/Chunk.java
++++ b/src/main/java/net/minecraft/world/level/chunk/Chunk.java
+@@ -20,6 +20,8 @@ import java.util.function.Supplier;
+ import java.util.stream.Stream;
+ import java.util.stream.StreamSupport;
+ import javax.annotation.Nullable;
++
++import net.earthcomputer.secureseed.SecureWorldChunk;
+ import net.minecraft.CrashReport;
+ import net.minecraft.CrashReportSystemDetails;
+ import net.minecraft.ReportedException;
+@@ -1306,6 +1308,18 @@ public class Chunk implements IChunkAccess {
+         this.x = flag;
+         this.setNeedsSaving(true);
+     }
++    // Paper start
++    private boolean hasComputedSlimeChunk = false;
++    private boolean isSlimeChunk;
++
++    public boolean isSlimeChunk() {
++        if (!hasComputedSlimeChunk) {
++            hasComputedSlimeChunk = true;
++            isSlimeChunk = net.earthcomputer.secureseed.SecureSeededRandom.getSlimeRandom(loc.x, loc.z, 0, 0).nextInt(10) == 0;
++        }
++        return isSlimeChunk;
++    }
++    // Paper end
+ 
+     public static enum EnumTileEntityState {
+ 
+diff --git a/src/main/java/net/minecraft/world/level/levelgen/GeneratorSettings.java b/src/main/java/net/minecraft/world/level/levelgen/GeneratorSettings.java
+index 5d9fd65b91ed7f3d66f36e900b12522876e0e22f..9f947920b06b5ee3c01de011ace0aa226741bf83 100644
+--- a/src/main/java/net/minecraft/world/level/levelgen/GeneratorSettings.java
++++ b/src/main/java/net/minecraft/world/level/levelgen/GeneratorSettings.java
+@@ -46,6 +46,42 @@ public class GeneratorSettings {
+             return generatorsettings.g;
+         })).apply(instance, instance.stable(GeneratorSettings::new));
+     }).comapFlatMap(GeneratorSettings::m, Function.identity());
++    // Paper start
++    public static final Codec<GeneratorSettings> SECURE_CODEC = RecordCodecBuilder.<GeneratorSettings>create((instance) -> { // CraftBukkit - decompile error
++        return instance.group(Codec.LONG.fieldOf("seed").stable().forGetter(GeneratorSettings::getSeed), Codec.BOOL.fieldOf("generate_features").orElse(true).stable().forGetter(GeneratorSettings::shouldGenerateMapFeatures), Codec.BOOL.fieldOf("bonus_chest").orElse(false).stable().forGetter(GeneratorSettings::c), RegistryMaterials.b(IRegistry.M, Lifecycle.stable(), WorldDimension.a).xmap(WorldDimension::a, Function.identity()).fieldOf("dimensions").forGetter(GeneratorSettings::d), Codec.STRING.optionalFieldOf("legacy_custom_options").stable().forGetter((generatorsettings) -> {
++            return generatorsettings.g;
++        })).and(Codec.LONG.listOf()
++            .xmap(list -> list.stream().mapToLong(Long::longValue).toArray(), array -> {
++                if (array == null) array = net.earthcomputer.secureseed.world.SecureWorldInfo.createRandomWorldSeed();
++                return java.util.Arrays.stream(array).boxed().collect(java.util.stream.Collectors.toList());
++            })
++            .orElseGet(net.earthcomputer.secureseed.world.SecureWorldInfo::createRandomWorldSeed)
++            .xmap(seed -> {
++                if (seed.length != net.earthcomputer.secureseed.world.SecureWorldInfo.WORLD_SEED_LONGS) {
++                    seed = net.earthcomputer.secureseed.world.SecureWorldInfo.createRandomWorldSeed();
++                }
++                return seed;
++            }, Function.identity())
++            .fieldOf("secureSeed")
++            .stable()
++            .forGetter(options -> ((GeneratorSettings) options).getSecureSeed()))
++            .apply(instance, RecordCodecBuilder.stable((seed, generateStructures, bonusChest, simpleRegistry, legacyCustomOptions, secureSeed) -> {
++                GeneratorSettings settings = new GeneratorSettings(seed, generateStructures, bonusChest, simpleRegistry, legacyCustomOptions);
++                settings.setSecureSeed(secureSeed);
++                return settings;
++            }));
++    }).comapFlatMap(GeneratorSettings::m, Function.identity());
++
++    private long[] secureSeed;
++
++    public long[] getSecureSeed() {
++        return secureSeed;
++    }
++
++    public void setSecureSeed(long[] secureSeed) {
++        this.secureSeed = secureSeed;
++    }
++    // Paper end
+     private static final Logger LOGGER = LogManager.getLogger();
+     private final long seed;
+     private final boolean d;
+@@ -169,9 +205,22 @@ public class GeneratorSettings {
+     }
+ 
+     public GeneratorSettings j() {
+-        return new GeneratorSettings(this.seed, this.d, true, this.f, this.g);
++        // Paper start - withBonusChest
++        GeneratorSettings settings = new GeneratorSettings(this.seed, this.d, true, this.f, this.g);
++        settings.setSecureSeed(this.secureSeed);
++        return settings;
++        // Paper end
+     }
+ 
++    // Paper start
++    public static GeneratorSettings createFromProperties(IRegistryCustom iRegistryCustom, Properties properties) {
++        GeneratorSettings settings = a(iRegistryCustom, properties);
++        String seedStr = properties.getProperty("level-seed");
++        long[] seed = seedStr.isEmpty() ? net.earthcomputer.secureseed.world.SecureWorldInfo.createRandomWorldSeed() : net.earthcomputer.secureseed.world.SecureWorldInfo.parseSeed(seedStr);
++        settings.setSecureSeed(seed);
++        return settings;
++    }
++    // Paper end
+     public static GeneratorSettings a(IRegistryCustom iregistrycustom, Properties properties) {
+         String s = (String) MoreObjects.firstNonNull((String) properties.get("generator-settings"), "");
+ 
+diff --git a/src/main/java/net/minecraft/world/level/levelgen/surfacebuilders/WorldGenSurfaceFrozenOcean.java b/src/main/java/net/minecraft/world/level/levelgen/surfacebuilders/WorldGenSurfaceFrozenOcean.java
+index 8086945f586e5b57d042d3e09887c75def5e2fdc..bebeb921e3e4baa3a250fa7cb220033547617f27 100644
+--- a/src/main/java/net/minecraft/world/level/levelgen/surfacebuilders/WorldGenSurfaceFrozenOcean.java
++++ b/src/main/java/net/minecraft/world/level/levelgen/surfacebuilders/WorldGenSurfaceFrozenOcean.java
+@@ -130,7 +130,8 @@ public class WorldGenSurfaceFrozenOcean extends WorldGenSurface<WorldGenSurfaceC
+     @Override
+     public void a(long i) {
+         if (this.M != i || this.K == null || this.L == null) {
+-            SeededRandom seededrandom = new SeededRandom(i);
++            SeededRandom seededrandom = com.destroystokyo.paper.PaperConfig.useSecureSeed ? new net.earthcomputer.secureseed.SecureSeededRandom(0) : new SeededRandom(i); // Paper
++            if (seededrandom instanceof net.earthcomputer.secureseed.SecureSeededRandom) ((net.earthcomputer.secureseed.SecureSeededRandom) seededrandom).setSecureSeed(net.earthcomputer.secureseed.SecureSeedGlobals.worldSeed, 0, 0, );
+ 
+             this.K = new NoiseGenerator3(seededrandom, IntStream.rangeClosed(-3, 0));
+             this.L = new NoiseGenerator3(seededrandom, ImmutableList.of(0));
