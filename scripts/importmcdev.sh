@@ -98,6 +98,11 @@ fi
 # we do not need any lines added to this file for NMS
 
 # import FileName
+import world/level/levelgen/surfacebuilders/WorldGenSurfaceFrozenOcean
+import world/level/levelgen/surfacebuilders/WorldGenSurfaceNetherForest
+import world/level/levelgen/surfacebuilders/WorldGenSurfaceNether
+import server/commands/CommandSeed
+import world/level/levelgen/carver/WorldGenCanyon
 
 
 ########################################################
