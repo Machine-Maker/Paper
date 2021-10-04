@@ -1,0 +1,301 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jake Potrebic <jake.m.potrebic@gmail.com>
+Date: Wed, 6 Oct 2021 13:35:02 -0700
+Subject: [PATCH] More Recipe API
+
+
+diff --git a/src/main/java/io/papermc/paper/recipe/CraftingInventoryRecipe.java b/src/main/java/io/papermc/paper/recipe/CraftingInventoryRecipe.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..7a753dfe264da3ecd37a205951176e713992cb28
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/recipe/CraftingInventoryRecipe.java
+@@ -0,0 +1,7 @@
++package io.papermc.paper.recipe;
++
++import org.bukkit.inventory.CraftingInventory;
++
++public interface CraftingInventoryRecipe extends CraftingRecipe<CraftingInventory> {
++    // Paper - for future use
++}
+diff --git a/src/main/java/io/papermc/paper/recipe/CraftingRecipe.java b/src/main/java/io/papermc/paper/recipe/CraftingRecipe.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..d0bba3608648e381718bb58942c92a8aeea3a0f1
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/recipe/CraftingRecipe.java
+@@ -0,0 +1,53 @@
++package io.papermc.paper.recipe;
++
++import org.bukkit.Keyed;
++import org.bukkit.World;
++import org.bukkit.inventory.Inventory;
++import org.bukkit.inventory.ItemStack;
++import org.bukkit.inventory.Recipe;
++import org.jetbrains.annotations.NotNull;
++
++public interface CraftingRecipe<C extends Inventory> extends Recipe, Keyed {
++
++    /**
++     * Creates the itemstack result. For most recipes,
++     * this will just be a copy of the result item, but
++     * for recipes where {@link #isSpecial()} is true,
++     * this will return the assembled itemstack (assuming
++     * this is an implemenation recipe).
++     *
++     * @param inventory the inventory
++     * @return the result
++     * @throws IllegalArgumentException if the inventory isn't a valid crafting inventory
++     */
++    @NotNull ItemStack create(@NotNull C inventory);
++
++    /**
++     * Tests if the given inventory matches the recipe and will
++     * produce a result.
++     *
++     * @param inventory the inventory to check
++     * @param world the world for the check to take place in
++     * @return true if a match is found
++     */
++    boolean matches(@NotNull C inventory, @NotNull World world);
++
++    /**
++     * Gets if the recipe is considered a special recipe.
++     *
++     * @return true if the recipe requires more information about the ingredients
++     */
++    default boolean isSpecial() {
++        return false;
++    }
++
++    /**
++     * Get the group of this recipe. Recipes with the same group may be grouped
++     * together when displayed in the client.
++     *
++     * @return recipe group. An empty string denotes no group. May not be null.
++     */
++    default @NotNull String getGroup() {
++        return "";
++    }
++}
+diff --git a/src/main/java/org/bukkit/UnsafeValues.java b/src/main/java/org/bukkit/UnsafeValues.java
+index b39d1474210da1974d7e95f10daaf496a9330442..0ea5f28a8167c0aecce79178f7f79761bb25e41d 100644
+--- a/src/main/java/org/bukkit/UnsafeValues.java
++++ b/src/main/java/org/bukkit/UnsafeValues.java
+@@ -237,5 +237,13 @@ public interface UnsafeValues {
+      * @throws IllegalArgumentException if {@link Material#isBlock()} is false
+      */
+     boolean isCollidable(@org.jetbrains.annotations.NotNull Material material);
++
++    /**
++     * Convert recipes created by the API into their implementation counterparts
++     *
++     * @param recipe the recipe to input
++     * @return the implementation recipe
++     */
++    <R extends io.papermc.paper.recipe.CraftingRecipe<?>> @org.jetbrains.annotations.NotNull R convertRecipe(@org.jetbrains.annotations.NotNull R recipe);
+     // Paper end
+ }
+diff --git a/src/main/java/org/bukkit/inventory/ComplexRecipe.java b/src/main/java/org/bukkit/inventory/ComplexRecipe.java
+index 46381c8f97d6ca2a16931675d1e7dd8a9b9de4e6..cb8bbbdc92ebb342031eae492b64d646920d676a 100644
+--- a/src/main/java/org/bukkit/inventory/ComplexRecipe.java
++++ b/src/main/java/org/bukkit/inventory/ComplexRecipe.java
+@@ -9,4 +9,11 @@ import org.bukkit.Keyed;
+  * Note: Since a complex recipe has dynamic outputs, {@link #getResult()} will
+  * sometimes return an AIR ItemStack.
+  */
+-public interface ComplexRecipe extends Recipe, Keyed {}
++public interface ComplexRecipe extends io.papermc.paper.recipe.CraftingInventoryRecipe { // Paper start
++
++    @Override
++    default boolean isSpecial() {
++        return true;
++    }
++}
++// Paper end
+diff --git a/src/main/java/org/bukkit/inventory/CookingRecipe.java b/src/main/java/org/bukkit/inventory/CookingRecipe.java
+index 6f251252aa96f202139103c657a81c71a0ffbfaf..6af47210629a0dfcc3c9011e2b2cf56e616bf99d 100644
+--- a/src/main/java/org/bukkit/inventory/CookingRecipe.java
++++ b/src/main/java/org/bukkit/inventory/CookingRecipe.java
+@@ -2,7 +2,7 @@ package org.bukkit.inventory;
+ 
+ import com.google.common.base.Preconditions;
+ import java.util.Collections;
+-import org.bukkit.Keyed;
++
+ import org.bukkit.Material;
+ import org.bukkit.NamespacedKey;
+ import org.jetbrains.annotations.NotNull;
+@@ -11,7 +11,7 @@ import org.jetbrains.annotations.NotNull;
+  * Represents a cooking recipe.
+  * @param <T> type of recipe
+  */
+-public abstract class CookingRecipe<T extends CookingRecipe> implements Recipe, Keyed {
++public abstract class CookingRecipe<T extends CookingRecipe> implements io.papermc.paper.recipe.CraftingRecipe<Inventory> {
+     private final NamespacedKey key;
+     private ItemStack output;
+     private RecipeChoice ingredient;
+@@ -155,6 +155,7 @@ public abstract class CookingRecipe<T extends CookingRecipe> implements Recipe,
+      * @return recipe group. An empty string denotes no group. May not be null.
+      */
+     @NotNull
++    @Override // Paper
+     public String getGroup() {
+         return group;
+     }
+@@ -170,4 +171,15 @@ public abstract class CookingRecipe<T extends CookingRecipe> implements Recipe,
+         Preconditions.checkArgument(group != null, "group");
+         this.group = group;
+     }
++    // Paper start
++    @Override
++    public @NotNull ItemStack create(org.bukkit.inventory.Inventory inventory) {
++        return this.getResult().clone();
++    }
++
++    @Override
++    public boolean matches(Inventory inventory, org.bukkit.World world) {
++        return this.ingredient.test(inventory.getItem(0));
++    }
++    // Paper end
+ }
+diff --git a/src/main/java/org/bukkit/inventory/ShapedRecipe.java b/src/main/java/org/bukkit/inventory/ShapedRecipe.java
+index 222a12baa8e93ad686ab59426653f066d5876e38..6339d2b01095205d46c4a0b19ebe50f99b17b4d9 100644
+--- a/src/main/java/org/bukkit/inventory/ShapedRecipe.java
++++ b/src/main/java/org/bukkit/inventory/ShapedRecipe.java
+@@ -14,7 +14,7 @@ import org.jetbrains.annotations.NotNull;
+ /**
+  * Represents a shaped (ie normal) crafting recipe.
+  */
+-public class ShapedRecipe implements Recipe, Keyed {
++public class ShapedRecipe implements io.papermc.paper.recipe.CraftingInventoryRecipe { // Paper
+     private final NamespacedKey key;
+     private final ItemStack output;
+     private String[] rows;
+@@ -218,6 +218,7 @@ public class ShapedRecipe implements Recipe, Keyed {
+      * @return recipe group. An empty string denotes no group. May not be null.
+      */
+     @NotNull
++    @Override // Paper
+     public String getGroup() {
+         return group;
+     }
+@@ -233,4 +234,15 @@ public class ShapedRecipe implements Recipe, Keyed {
+         Preconditions.checkArgument(group != null, "group");
+         this.group = group;
+     }
++    // Paper start
++    @Override
++    public @NotNull ItemStack create(@NotNull CraftingInventory inventory) {
++        return this.getResult();
++    }
++
++    @Override
++    public boolean matches(@NotNull CraftingInventory inventory, @NotNull org.bukkit.World world) {
++        return org.bukkit.Bukkit.getUnsafe().convertRecipe(this).matches(inventory, world);
++    }
++    // Paper end
+ }
+diff --git a/src/main/java/org/bukkit/inventory/ShapelessRecipe.java b/src/main/java/org/bukkit/inventory/ShapelessRecipe.java
+index 7f6d3c71c5b3a9aa54c84a4c3b7c3614a0d477ce..c798f1f85c6a24f76ee09520a05047167639f2bc 100644
+--- a/src/main/java/org/bukkit/inventory/ShapelessRecipe.java
++++ b/src/main/java/org/bukkit/inventory/ShapelessRecipe.java
+@@ -16,7 +16,7 @@ import org.jetbrains.annotations.NotNull;
+  * Represents a shapeless recipe, where the arrangement of the ingredients on
+  * the crafting grid does not matter.
+  */
+-public class ShapelessRecipe implements Recipe, Keyed {
++public class ShapelessRecipe implements io.papermc.paper.recipe.CraftingInventoryRecipe { // Paper
+     private final NamespacedKey key;
+     private final ItemStack output;
+     private final List<RecipeChoice> ingredients = new ArrayList<>();
+@@ -332,6 +332,7 @@ public class ShapelessRecipe implements Recipe, Keyed {
+      * @return recipe group. An empty string denotes no group. May not be null.
+      */
+     @NotNull
++    @Override // Paper
+     public String getGroup() {
+         return group;
+     }
+@@ -347,4 +348,16 @@ public class ShapelessRecipe implements Recipe, Keyed {
+         Preconditions.checkArgument(group != null, "group");
+         this.group = group;
+     }
++
++    // Paper start
++    @Override
++    public @NotNull ItemStack create(@NotNull CraftingInventory inventory) {
++        return this.getResult();
++    }
++
++    @Override
++    public boolean matches(@NotNull CraftingInventory inventory, @NotNull org.bukkit.World world) {
++        return org.bukkit.Bukkit.getUnsafe().convertRecipe(this).matches(inventory, world);
++    }
++    // Paper end
+ }
+diff --git a/src/main/java/org/bukkit/inventory/SmithingRecipe.java b/src/main/java/org/bukkit/inventory/SmithingRecipe.java
+index 00000f1399b053bb3c7b6d4792559b630d414b81..54e4946c6902be984456ab015d85852fa90a3ad1 100644
+--- a/src/main/java/org/bukkit/inventory/SmithingRecipe.java
++++ b/src/main/java/org/bukkit/inventory/SmithingRecipe.java
+@@ -7,7 +7,7 @@ import org.jetbrains.annotations.NotNull;
+ /**
+  * Represents a smithing recipe.
+  */
+-public class SmithingRecipe implements Recipe, Keyed {
++public class SmithingRecipe implements io.papermc.paper.recipe.CraftingRecipe<Inventory> { // Paper
+ 
+     private final NamespacedKey key;
+     private final ItemStack result;
+@@ -86,5 +86,15 @@ public class SmithingRecipe implements Recipe, Keyed {
+     public boolean willCopyNbt() {
+         return copyNbt;
+     }
++
++    @Override
++    public @NotNull ItemStack create(@NotNull Inventory inventory) {
++        return org.bukkit.Bukkit.getUnsafe().convertRecipe(this).create(inventory);
++    }
++
++    @Override
++    public boolean matches(@NotNull Inventory inventory, org.bukkit.@NotNull World world) {
++        return org.bukkit.Bukkit.getUnsafe().convertRecipe(this).matches(inventory, world);
++    }
+     // Paper end
+ }
+diff --git a/src/main/java/org/bukkit/inventory/StonecuttingRecipe.java b/src/main/java/org/bukkit/inventory/StonecuttingRecipe.java
+index d8ef781d6b025790ce9d2a9782e6ef2a47cc8e62..301dd8936567b586a0b8ac9015f542320dccbcfa 100644
+--- a/src/main/java/org/bukkit/inventory/StonecuttingRecipe.java
++++ b/src/main/java/org/bukkit/inventory/StonecuttingRecipe.java
+@@ -10,7 +10,7 @@ import org.jetbrains.annotations.NotNull;
+ /**
+  * Represents a Stonecutting recipe.
+  */
+-public class StonecuttingRecipe implements Recipe, Keyed {
++public class StonecuttingRecipe implements io.papermc.paper.recipe.CraftingRecipe<Inventory> { // Paper
+     private final NamespacedKey key;
+     private ItemStack output;
+     private RecipeChoice ingredient;
+@@ -109,6 +109,7 @@ public class StonecuttingRecipe implements Recipe, Keyed {
+      * @return recipe group. An empty string denotes no group. May not be null.
+      */
+     @NotNull
++    @Override // Paper
+     public String getGroup() {
+         return group;
+     }
+@@ -124,4 +125,16 @@ public class StonecuttingRecipe implements Recipe, Keyed {
+         Preconditions.checkArgument(group != null, "group");
+         this.group = group;
+     }
++
++    // Paper start
++    @Override
++    public @NotNull ItemStack create(@NotNull Inventory inventory) {
++        return this.getResult();
++    }
++
++    @Override
++    public boolean matches(@NotNull Inventory inventory, org.bukkit.@NotNull World world) {
++        return this.ingredient.test(inventory.getItem(0));
++    }
++    // Paper end
+ }

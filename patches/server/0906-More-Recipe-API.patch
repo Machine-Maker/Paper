@@ -1,0 +1,283 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jake Potrebic <jake.m.potrebic@gmail.com>
+Date: Wed, 6 Oct 2021 13:35:06 -0700
+Subject: [PATCH] More Recipe API
+
+
+diff --git a/src/main/java/io/papermc/paper/recipe/PaperCraftingInventoryRecipe.java b/src/main/java/io/papermc/paper/recipe/PaperCraftingInventoryRecipe.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..c8ec9277b091b7a5545b634c23fa2b980a363097
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/recipe/PaperCraftingInventoryRecipe.java
+@@ -0,0 +1,18 @@
++package io.papermc.paper.recipe;
++
++import net.minecraft.world.Container;
++import net.minecraft.world.inventory.CraftingContainer;
++import org.bukkit.craftbukkit.inventory.CraftInventoryCrafting;
++import org.bukkit.inventory.CraftingInventory;
++
++public interface PaperCraftingInventoryRecipe extends PaperCraftingRecipe<CraftingInventory, CraftingContainer> {
++
++    @Override
++    default CraftingContainer fromBukkit(CraftingInventory inventory) {
++        Container container = ((CraftInventoryCrafting) inventory).getMatrixInventory();
++        if (container instanceof CraftingContainer craftingContainer) {
++            return craftingContainer;
++        }
++        throw new IllegalArgumentException(inventory + " isnt a valid crafting inventory");
++    }
++}
+diff --git a/src/main/java/io/papermc/paper/recipe/PaperCraftingRecipe.java b/src/main/java/io/papermc/paper/recipe/PaperCraftingRecipe.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..95d4619025f4f50fc07c35e6479cd2dc6a3895d4
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/recipe/PaperCraftingRecipe.java
+@@ -0,0 +1,10 @@
++package io.papermc.paper.recipe;
++
++import net.minecraft.world.Container;
++import org.bukkit.craftbukkit.inventory.CraftRecipe;
++import org.bukkit.inventory.Inventory;
++
++public interface PaperCraftingRecipe<B extends Inventory, C extends Container> extends CraftingRecipe<B>, CraftRecipe {
++
++    C fromBukkit(B inventory);
++}
+diff --git a/src/main/java/io/papermc/paper/recipe/PaperSimpleInventoryRecipe.java b/src/main/java/io/papermc/paper/recipe/PaperSimpleInventoryRecipe.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..f06ba6ebbb71687fca9617ac6c1d8ad79c0d4ff4
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/recipe/PaperSimpleInventoryRecipe.java
+@@ -0,0 +1,13 @@
++package io.papermc.paper.recipe;
++
++import net.minecraft.world.Container;
++import org.bukkit.craftbukkit.inventory.CraftInventory;
++import org.bukkit.inventory.Inventory;
++
++public interface PaperSimpleInventoryRecipe extends PaperCraftingRecipe<Inventory, Container> {
++
++    @Override
++    default Container fromBukkit(Inventory inventory) {
++        return ((CraftInventory) inventory).getInventory();
++    }
++}
+diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftComplexRecipe.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftComplexRecipe.java
+index 81dfefbb1adda0d0b89b912b42d461bdc2250dcc..ac778d3f8f9679081af68f5e942d852aca5b4509 100644
+--- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftComplexRecipe.java
++++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftComplexRecipe.java
+@@ -7,7 +7,7 @@ import org.bukkit.craftbukkit.util.CraftNamespacedKey;
+ import org.bukkit.inventory.ComplexRecipe;
+ import org.bukkit.inventory.ItemStack;
+ 
+-public class CraftComplexRecipe implements CraftRecipe, ComplexRecipe {
++public class CraftComplexRecipe implements io.papermc.paper.recipe.PaperCraftingInventoryRecipe, ComplexRecipe {
+ 
+     private final CustomRecipe recipe;
+ 
+@@ -29,4 +29,16 @@ public class CraftComplexRecipe implements CraftRecipe, ComplexRecipe {
+     public void addToCraftingManager() {
+         MinecraftServer.getServer().getRecipeManager().addRecipe(recipe);
+     }
++
++    // Paper start
++    @Override
++    public ItemStack create(org.bukkit.inventory.CraftingInventory inventory) {
++        return CraftItemStack.asBukkitCopy(this.recipe.assemble(fromBukkit(inventory)));
++    }
++
++    @Override
++    public boolean matches(org.bukkit.inventory.CraftingInventory inventory, org.bukkit.World world) {
++        return this.recipe.matches(fromBukkit(inventory), ((org.bukkit.craftbukkit.CraftWorld) world).getHandle());
++    }
++    // Paper end
+ }
+diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftShapedRecipe.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftShapedRecipe.java
+index d1156b5d9e210152ff06162382ca7f7978a4fd5e..d8778c31c908a605135cd73e178e3e249253b4b8 100644
+--- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftShapedRecipe.java
++++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftShapedRecipe.java
+@@ -10,7 +10,7 @@ import org.bukkit.inventory.ItemStack;
+ import org.bukkit.inventory.RecipeChoice;
+ import org.bukkit.inventory.ShapedRecipe;
+ 
+-public class CraftShapedRecipe extends ShapedRecipe implements CraftRecipe {
++public class CraftShapedRecipe extends ShapedRecipe implements io.papermc.paper.recipe.PaperCraftingInventoryRecipe { // Paper
+     // TODO: Could eventually use this to add a matches() method or some such
+     private net.minecraft.world.item.crafting.ShapedRecipe recipe;
+ 
+@@ -43,18 +43,30 @@ public class CraftShapedRecipe extends ShapedRecipe implements CraftRecipe {
+ 
+     @Override
+     public void addToCraftingManager() {
+-        String[] shape = this.getShape();
+-        Map<Character, org.bukkit.inventory.RecipeChoice> ingred = this.getChoiceMap();
+-        int width = shape[0].length();
+-        NonNullList<Ingredient> data = NonNullList.withSize(shape.length * width, Ingredient.EMPTY);
+-
+-        for (int i = 0; i < shape.length; i++) {
+-            String row = shape[i];
+-            for (int j = 0; j < row.length(); j++) {
+-                data.set(i * width + j, toNMS(ingred.get(row.charAt(j)), false));
++        MinecraftServer.getServer().getRecipeManager().addRecipe(this.getMinecraftRecipe()); // Paper
++    }
++
++    // Paper start
++    private net.minecraft.world.item.crafting.ShapedRecipe getMinecraftRecipe() {
++        if (this.recipe == null) {
++            String[] shape = this.getShape();
++            Map<Character, RecipeChoice> ingred = this.getChoiceMap();
++            int width = shape[0].length();
++            NonNullList<Ingredient> data = NonNullList.withSize(shape.length * width, Ingredient.EMPTY);
++
++            for (int i = 0; i < shape.length; i++) {
++                String row = shape[i];
++                for (int j = 0; j < row.length(); j++) {
++                    data.set(i * width + j, toNMS(ingred.get(row.charAt(j)), false));
++                }
+             }
++            return new net.minecraft.world.item.crafting.ShapedRecipe(CraftNamespacedKey.toMinecraft(this.getKey()), this.getGroup(), width, shape.length, data, CraftItemStack.asNMSCopy(this.getResult()));
+         }
+-
+-        MinecraftServer.getServer().getRecipeManager().addRecipe(new net.minecraft.world.item.crafting.ShapedRecipe(CraftNamespacedKey.toMinecraft(this.getKey()), this.getGroup(), width, shape.length, data, CraftItemStack.asNMSCopy(this.getResult())));
++        return this.recipe;
++    }
++    @Override
++    public boolean matches(org.bukkit.inventory.CraftingInventory inventory, org.bukkit.World world) {
++        return this.getMinecraftRecipe().matches(fromBukkit(inventory), ((org.bukkit.craftbukkit.CraftWorld) world).getHandle());
+     }
++    // Paper end
+ }
+diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftShapelessRecipe.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftShapelessRecipe.java
+index 0b3b46348ac9195bff1492ffc11fcbff7d3f5c6f..2be144a045900d2bac933aeb60c80c76cd1d78e6 100644
+--- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftShapelessRecipe.java
++++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftShapelessRecipe.java
+@@ -10,7 +10,7 @@ import org.bukkit.inventory.ItemStack;
+ import org.bukkit.inventory.RecipeChoice;
+ import org.bukkit.inventory.ShapelessRecipe;
+ 
+-public class CraftShapelessRecipe extends ShapelessRecipe implements CraftRecipe {
++public class CraftShapelessRecipe extends ShapelessRecipe implements io.papermc.paper.recipe.PaperCraftingInventoryRecipe { // Paper
+     // TODO: Could eventually use this to add a matches() method or some such
+     private net.minecraft.world.item.crafting.ShapelessRecipe recipe;
+ 
+@@ -37,12 +37,25 @@ public class CraftShapelessRecipe extends ShapelessRecipe implements CraftRecipe
+ 
+     @Override
+     public void addToCraftingManager() {
+-        List<org.bukkit.inventory.RecipeChoice> ingred = this.getChoiceList();
+-        NonNullList<Ingredient> data = NonNullList.withSize(ingred.size(), Ingredient.EMPTY);
+-        for (int i = 0; i < ingred.size(); i++) {
+-            data.set(i, toNMS(ingred.get(i), true));
++        MinecraftServer.getServer().getRecipeManager().addRecipe(this.getMinecraftRecipe()); // Paper
++    }
++
++    // Paper start
++    private net.minecraft.world.item.crafting.ShapelessRecipe getMinecraftRecipe() {
++        if (this.recipe == null){
++            List<org.bukkit.inventory.RecipeChoice> ingred = this.getChoiceList();
++            NonNullList<Ingredient> data = NonNullList.withSize(ingred.size(), Ingredient.EMPTY);
++            for (int i = 0; i < ingred.size(); i++) {
++                data.set(i, toNMS(ingred.get(i), true));
++            }
++            return new net.minecraft.world.item.crafting.ShapelessRecipe(CraftNamespacedKey.toMinecraft(this.getKey()), this.getGroup(), CraftItemStack.asNMSCopy(this.getResult()), data);
+         }
++        return this.recipe;
++    }
+ 
+-        MinecraftServer.getServer().getRecipeManager().addRecipe(new net.minecraft.world.item.crafting.ShapelessRecipe(CraftNamespacedKey.toMinecraft(this.getKey()), this.getGroup(), CraftItemStack.asNMSCopy(this.getResult()), data));
++    @Override
++    public boolean matches(org.bukkit.inventory.CraftingInventory inventory, org.bukkit.World world) {
++        return this.getMinecraftRecipe().matches(fromBukkit(inventory), ((org.bukkit.craftbukkit.CraftWorld) world).getHandle());
+     }
++    // Paper end
+ }
+diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftSmithingRecipe.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftSmithingRecipe.java
+index bfd6b859fcfed89d0ebaca5200b7ca6f5d353d04..c396e03e976e0e27e5ffa34263fe7c2a86c11aca 100644
+--- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftSmithingRecipe.java
++++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftSmithingRecipe.java
+@@ -7,7 +7,7 @@ import org.bukkit.inventory.ItemStack;
+ import org.bukkit.inventory.RecipeChoice;
+ import org.bukkit.inventory.SmithingRecipe;
+ 
+-public class CraftSmithingRecipe extends SmithingRecipe implements CraftRecipe {
++public class CraftSmithingRecipe extends SmithingRecipe implements io.papermc.paper.recipe.PaperSimpleInventoryRecipe { // Paper
+     @Deprecated // Paper
+     public CraftSmithingRecipe(NamespacedKey key, ItemStack result, RecipeChoice base, RecipeChoice addition) {
+         super(key, result, base, addition);
+@@ -30,6 +30,22 @@ public class CraftSmithingRecipe extends SmithingRecipe implements CraftRecipe {
+     public void addToCraftingManager() {
+         ItemStack result = this.getResult();
+ 
+-        MinecraftServer.getServer().getRecipeManager().addRecipe(new net.minecraft.world.item.crafting.UpgradeRecipe(CraftNamespacedKey.toMinecraft(this.getKey()), toNMS(this.getBase(), true), toNMS(this.getAddition(), true), CraftItemStack.asNMSCopy(result), this.willCopyNbt())); // Paper
++        MinecraftServer.getServer().getRecipeManager().addRecipe(this.getMinecraftRecipe()); // Paper
+     }
++
++    // Paper start
++    private net.minecraft.world.item.crafting.UpgradeRecipe getMinecraftRecipe() {
++        return new net.minecraft.world.item.crafting.UpgradeRecipe(CraftNamespacedKey.toMinecraft(this.getKey()), toNMS(this.getBase(), true), toNMS(this.getAddition(), true), CraftItemStack.asNMSCopy(this.getResult()), this.willCopyNbt()); // Paper - option to copy nbt
++    }
++
++    @Override
++    public org.bukkit.inventory.ItemStack create(org.bukkit.inventory.Inventory inventory) {
++        return CraftItemStack.asBukkitCopy(this.getMinecraftRecipe().assemble(this.fromBukkit(inventory)));
++    }
++
++    @Override
++    public boolean matches(org.bukkit.inventory.Inventory inventory, org.bukkit.World world) {
++        return this.getMinecraftRecipe().matches(this.fromBukkit(inventory), ((org.bukkit.craftbukkit.CraftWorld) world).getHandle());
++    }
++    // Paper end
+ }
+diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftStonecuttingRecipe.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftStonecuttingRecipe.java
+index 8d79d64dfa6ef46c4c103fec42b13e1aefc14b39..56f5efb387113bb2965f9db49238ac3fbac3cf5c 100644
+--- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftStonecuttingRecipe.java
++++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftStonecuttingRecipe.java
+@@ -7,7 +7,7 @@ import org.bukkit.inventory.ItemStack;
+ import org.bukkit.inventory.RecipeChoice;
+ import org.bukkit.inventory.StonecuttingRecipe;
+ 
+-public class CraftStonecuttingRecipe extends StonecuttingRecipe implements CraftRecipe {
++public class CraftStonecuttingRecipe extends StonecuttingRecipe implements io.papermc.paper.recipe.PaperSimpleInventoryRecipe { // Paper
+     public CraftStonecuttingRecipe(NamespacedKey key, ItemStack result, RecipeChoice source) {
+         super(key, result, source);
+     }
+diff --git a/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java b/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
+index 41e7ca100073052b99c82fa6a82f8168e0135499..507f6f4a5724a8c8ba467068443b885325d27dca 100644
+--- a/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
++++ b/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
+@@ -599,6 +599,34 @@ public final class CraftMagicNumbers implements UnsafeValues {
+         Preconditions.checkArgument(material.isBlock(), material + " is not a block");
+         return getBlock(material).hasCollision;
+     }
++
++    @SuppressWarnings("unchecked")
++    @Override
++    public <R extends io.papermc.paper.recipe.CraftingRecipe<?>> R convertRecipe(R recipe) {
++        if (recipe instanceof io.papermc.paper.recipe.PaperCraftingRecipe<?, ?>) {
++            return recipe;
++        } else {
++            if (recipe instanceof org.bukkit.inventory.ShapedRecipe shapedRecipe) {
++                return (R) org.bukkit.craftbukkit.inventory.CraftShapedRecipe.fromBukkitRecipe(shapedRecipe);
++            } else if (recipe instanceof org.bukkit.inventory.ShapelessRecipe shapelessRecipe) {
++                return (R) org.bukkit.craftbukkit.inventory.CraftShapelessRecipe.fromBukkitRecipe(shapelessRecipe);
++            } else if (recipe instanceof org.bukkit.inventory.FurnaceRecipe furnaceRecipe) {
++                return (R) org.bukkit.craftbukkit.inventory.CraftFurnaceRecipe.fromBukkitRecipe(furnaceRecipe);
++            } else if (recipe instanceof org.bukkit.inventory.BlastingRecipe blastingRecipe) {
++                return (R) org.bukkit.craftbukkit.inventory.CraftBlastingRecipe.fromBukkitRecipe(blastingRecipe);
++            } else if (recipe instanceof org.bukkit.inventory.CampfireRecipe campfireRecipe) {
++                return (R) org.bukkit.craftbukkit.inventory.CraftCampfireRecipe.fromBukkitRecipe(campfireRecipe);
++            } else if (recipe instanceof org.bukkit.inventory.SmokingRecipe smokingRecipe) {
++                return (R) org.bukkit.craftbukkit.inventory.CraftSmokingRecipe.fromBukkitRecipe(smokingRecipe);
++            } else if (recipe instanceof org.bukkit.inventory.StonecuttingRecipe stonecuttingRecipe) {
++                return (R) org.bukkit.craftbukkit.inventory.CraftStonecuttingRecipe.fromBukkitRecipe(stonecuttingRecipe);
++            } else if (recipe instanceof org.bukkit.inventory.SmithingRecipe smithingRecipe) {
++                return (R) org.bukkit.craftbukkit.inventory.CraftSmithingRecipe.fromBukkitRecipe(smithingRecipe);
++            } else {
++                throw new IllegalArgumentException("Unexpected recipe: " + recipe);
++            }
++        }
++    }
+     // Paper end
+ 
+     /**
