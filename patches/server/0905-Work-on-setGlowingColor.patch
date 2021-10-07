@@ -1,0 +1,181 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jake Potrebic <jake.m.potrebic@gmail.com>
+Date: Wed, 6 Oct 2021 17:19:53 -0700
+Subject: [PATCH] Work on setGlowingColor
+
+
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundSetPlayerTeamPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundSetPlayerTeamPacket.java
+index 9c7c6751e81af9a013de4fe9e4d029b69a8534ca..8d7e182dab49b80d76d5a6be648682195228840a 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundSetPlayerTeamPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundSetPlayerTeamPacket.java
+@@ -11,6 +11,7 @@ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.world.scores.PlayerTeam;
+ 
+ public class ClientboundSetPlayerTeamPacket implements Packet<ClientGamePacketListener> {
++    public static final net.kyori.adventure.util.Index<String, net.kyori.adventure.text.format.NamedTextColor> GLOWING_TEAMS = net.kyori.adventure.util.Index.create(a -> org.apache.commons.lang.RandomStringUtils.randomAlphanumeric(200), java.util.List.copyOf(net.kyori.adventure.text.format.NamedTextColor.NAMES.values())); // Paper
+     private static final int METHOD_ADD = 0;
+     private static final int METHOD_REMOVE = 1;
+     private static final int METHOD_CHANGE = 2;
+@@ -30,6 +31,20 @@ public class ClientboundSetPlayerTeamPacket implements Packet<ClientGamePacketLi
+         this.players = ImmutableList.copyOf(playerNames);
+     }
+ 
++    // Paper start
++    public static Collection<ClientboundSetPlayerTeamPacket> createTeamGlowingPackets() {
++        Collection<ClientboundSetPlayerTeamPacket> packets = new java.util.HashSet<>();
++        for (String teamName : GLOWING_TEAMS.keys()) {
++            packets.add(new ClientboundSetPlayerTeamPacket(teamName, METHOD_ADD, Optional.of(new Parameters(teamName, io.papermc.paper.adventure.PaperAdventure.asVanilla(GLOWING_TEAMS.value(teamName)))), ImmutableList.of()));
++        }
++        return packets;
++    }
++
++    public static ClientboundSetPlayerTeamPacket createEntityGlowingColorChangePacket(net.minecraft.world.entity.Entity entity, net.kyori.adventure.text.format.NamedTextColor color) {
++        return new ClientboundSetPlayerTeamPacket(GLOWING_TEAMS.key(color), METHOD_JOIN, Optional.empty(), ImmutableList.of(entity.getScoreboardName()));
++    }
++    // Paper end
++
+     public static ClientboundSetPlayerTeamPacket createAddOrModifyPacket(PlayerTeam team, boolean updatePlayers) {
+         return new ClientboundSetPlayerTeamPacket(team.getName(), updatePlayers ? 0 : 2, Optional.of(new ClientboundSetPlayerTeamPacket.Parameters(team)), (Collection<String>)(updatePlayers ? team.getPlayers() : ImmutableList.of()));
+     }
+@@ -147,6 +162,18 @@ public class ClientboundSetPlayerTeamPacket implements Packet<ClientGamePacketLi
+         private final ChatFormatting color;
+         private final int options;
+ 
++        // Paper start
++        private Parameters(String name, ChatFormatting color) {
++            this.displayName = new net.minecraft.network.chat.TextComponent(name);
++            this.playerPrefix = net.minecraft.network.chat.TextComponent.EMPTY;
++            this.playerSuffix = net.minecraft.network.chat.TextComponent.EMPTY;
++            this.nametagVisibility = PlayerTeam.Visibility.ALWAYS.name;
++            this.collisionRule = PlayerTeam.Visibility.ALWAYS.name;
++            this.color = color;
++            this.options = 0b11;
++        }
++        // Paper end
++
+         public Parameters(PlayerTeam team) {
+             this.displayName = team.getDisplayName();
+             this.options = team.packOptions();
+diff --git a/src/main/java/net/minecraft/server/level/ServerEntity.java b/src/main/java/net/minecraft/server/level/ServerEntity.java
+index f91e1a876ad4c46a7c92cead18947a941b4d9e68..7ade805080bb709f8f04a70d2ad46b248e3e1202 100644
+--- a/src/main/java/net/minecraft/server/level/ServerEntity.java
++++ b/src/main/java/net/minecraft/server/level/ServerEntity.java
+@@ -364,6 +364,9 @@ public class ServerEntity {
+                 consumer.accept(new ClientboundSetEntityLinkPacket(entityinsentient, entityinsentient.getLeashHolder()));
+             }
+         }
++        // Paper start - glowing color
++
++        // Paper end
+ 
+     }
+ 
+diff --git a/src/main/java/net/minecraft/server/level/ServerLevel.java b/src/main/java/net/minecraft/server/level/ServerLevel.java
+index 98209532ad3e692d7e459640123f78bbd9a65889..6553cf33f704c7a740dfddd334327314bb02de6b 100644
+--- a/src/main/java/net/minecraft/server/level/ServerLevel.java
++++ b/src/main/java/net/minecraft/server/level/ServerLevel.java
+@@ -2486,6 +2486,7 @@ public class ServerLevel extends Level implements WorldGenLevel {
+             if (entity.getOriginWorld() == null) {
+                 entity.setOrigin(entity.getOriginVector().toLocation(getWorld()));
+             }
++            entity.getBukkitEntity().updateGlowingColor(); // Paper
+             // Paper end
+             new com.destroystokyo.paper.event.entity.EntityAddToWorldEvent(entity.getBukkitEntity()).callEvent(); // Paper - fire while valid
+         }
+diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
+index 95fe4240f3e1174ec36598f24d63f0073c13b376..56cb3e1322fd5dfa8ab59839431163652ec4d421 100644
+--- a/src/main/java/net/minecraft/server/players/PlayerList.java
++++ b/src/main/java/net/minecraft/server/players/PlayerList.java
+@@ -283,6 +283,7 @@ public abstract class PlayerList {
+         player.getStats().markAllDirty();
+         player.getRecipeBook().sendInitialRecipeBook(player);
+         this.updateEntireScoreboard(worldserver1.getScoreboard(), player);
++        ClientboundSetPlayerTeamPacket.createTeamGlowingPackets().forEach(player.connection::send); // Paper - send glowing color teams
+         this.server.invalidateStatus();
+         // Paper start - async load spawn in chunk
+         ServerLevel finalWorldserver = worldserver1;
+diff --git a/src/main/java/net/minecraft/world/entity/Entity.java b/src/main/java/net/minecraft/world/entity/Entity.java
+index 86a2eddf344503cbe75a5243a114f6fe1578185f..d5277eaa51b36bf805b3d353009c41da83eeebeb 100644
+--- a/src/main/java/net/minecraft/world/entity/Entity.java
++++ b/src/main/java/net/minecraft/world/entity/Entity.java
+@@ -329,6 +329,7 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource {
+     public long activatedImmunityTick = Integer.MIN_VALUE; // Paper
+     public boolean isTemporarilyActive = false; // Paper
+     public boolean fromNetherPortal; // Paper
++    public @Nullable net.kyori.adventure.text.format.NamedTextColor glowingColor;
+     protected int numCollisions = 0; // Paper
+     public boolean spawnedViaMobSpawner; // Paper - Yes this name is similar to above, upstream took the better one
+     @javax.annotation.Nullable
+@@ -2167,6 +2168,9 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource {
+             if (freezeLocked) {
+                 nbt.putBoolean("Paper.FreezeLock", true);
+             }
++            if (this.glowingColor != null) {
++                nbt.putString("Paper.GlowingColor", glowingColor.toString());
++            }
+             // Paper end
+             return nbt;
+         } catch (Throwable throwable) {
+@@ -2332,6 +2336,9 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource {
+             if (nbt.contains("Paper.FreezeLock")) {
+                 freezeLocked = nbt.getBoolean("Paper.FreezeLock");
+             }
++            if (nbt.contains("Paper.GlowingColor", net.minecraft.nbt.Tag.TAG_STRING)) {
++                glowingColor = net.kyori.adventure.text.format.NamedTextColor.NAMES.value(nbt.getString("Paper.GlowingColor"));
++            }
+             // Paper end
+ 
+         } catch (Throwable throwable) {
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+index a92755211e3d42934b5efaa3f201c6c19ab7d2b4..e7ac4fad4f2769fb9ce3574df67eb86402935bf7 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+@@ -1283,6 +1283,35 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+         return getHandle().isTicking();
+     }
+ 
++    @Override
++    public net.kyori.adventure.text.format.NamedTextColor getGlowingColor() {
++        return getHandle().glowingColor;
++    }
++
++    @Override
++    public void setGlowingColor(net.kyori.adventure.text.format.NamedTextColor color) {
++        if (getHandle().glowingColor == color) {
++            return;
++        }
++        getHandle().glowingColor = color;
++        updateGlowingColor();
++    }
++
++    public void updateGlowingColor() {
++        if (getHandle().glowingColor != null) {
++            for (org.bukkit.craftbukkit.scoreboard.CraftScoreboard scoreboard : ((org.bukkit.craftbukkit.scoreboard.CraftScoreboardManager) this.getServer().getScoreboardManager()).scoreboards) {
++                var team = scoreboard.getEntryTeam(getHandle().getScoreboardName());
++                if (team != null) {
++                    team.removeEntry(getHandle().getScoreboardName());
++                }
++            }
++            var packet = net.minecraft.network.protocol.game.ClientboundSetPlayerTeamPacket.createEntityGlowingColorChangePacket(getHandle(), getHandle().glowingColor);
++            for (net.minecraft.server.level.ServerPlayer player : this.getHandle().getServer().getPlayerList().players) {
++                player.connection.send(packet);
++            }
++        }
++    }
++
+     @Override
+     public Set<org.bukkit.entity.Player> getTrackedPlayers() {
+         if (this.entity.tracker == null) {
+diff --git a/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftScoreboardManager.java b/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftScoreboardManager.java
+index 1a3b1eb7b70b9a668aa33ea943c13890eaa23a05..1f6631bbbfe4bc839c3c7a1f1dbefa7f3c76a539 100644
+--- a/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftScoreboardManager.java
++++ b/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftScoreboardManager.java
+@@ -25,7 +25,7 @@ import org.bukkit.scoreboard.ScoreboardManager;
+ public final class CraftScoreboardManager implements ScoreboardManager {
+     private final CraftScoreboard mainScoreboard;
+     private final MinecraftServer server;
+-    private final Collection<CraftScoreboard> scoreboards = new WeakCollection<CraftScoreboard>();
++    public final Collection<CraftScoreboard> scoreboards = new WeakCollection<CraftScoreboard>();
+     private final Map<CraftPlayer, CraftScoreboard> playerBoards = new HashMap<CraftPlayer, CraftScoreboard>();
+ 
+     public CraftScoreboardManager(MinecraftServer minecraftserver, net.minecraft.world.scores.Scoreboard scoreboardServer) {
