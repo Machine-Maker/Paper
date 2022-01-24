@@ -1,0 +1,102 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: BillyGalbreath <Blake.Galbreath@GMail.com>
+Date: Sun, 7 May 2017 06:26:01 -0500
+Subject: [PATCH] Fix and expand PickupItemEvents
+
+Upstream deprecated PlayerPickupItemEvent while there was still
+a valid subclass evnet of it. This is technically an API break
+with upstream due to PlayerItemPickupEvent no longer extending
+PlayerEvent, but rather EntityPickupItemEvent. All other functionality
+should be the same regarding when each event is fired.
+
+Co-authored-by: Jake Potrebic <jake.m.potrebic@gmail.com>
+
+diff --git a/src/main/java/org/bukkit/event/player/PlayerPickupItemEvent.java b/src/main/java/org/bukkit/event/player/PlayerPickupItemEvent.java
+index 951ea2cc763973655beedcba3c75332d3f297313..46f4a323b5120c0fe01997b059d446ef0dd6f555 100644
+--- a/src/main/java/org/bukkit/event/player/PlayerPickupItemEvent.java
++++ b/src/main/java/org/bukkit/event/player/PlayerPickupItemEvent.java
+@@ -10,59 +10,49 @@ import org.jetbrains.annotations.NotNull;
+ 
+ /**
+  * Thrown when a player picks an item up from the ground
+- * @deprecated {@link EntityPickupItemEvent}
+  */
+-@Deprecated
+-@Warning(false)
+-public class PlayerPickupItemEvent extends PlayerEvent implements Cancellable {
+-    private static final HandlerList handlers = new HandlerList();
+-    private final Item item;
+-    private boolean cancel = false;
+-    private final int remaining;
++public class PlayerPickupItemEvent extends EntityPickupItemEvent implements Cancellable {
++    private boolean flyAtPlayer = true; // Paper
+ 
+     public PlayerPickupItemEvent(@NotNull final Player player, @NotNull final Item item, final int remaining) {
+-        super(player);
+-        this.item = item;
+-        this.remaining = remaining;
++        super(player, item, remaining);
+     }
+ 
++    // Paper Start
+     /**
+-     * Gets the Item picked up by the player.
++     * Gets the player for this event. This method
++     * just casts {@link #getEntity()} to Player since
++     * the entity is guaranteed to be a player.
+      *
+-     * @return Item
++     * @return the player
+      */
+-    @NotNull
+-    public Item getItem() {
+-        return item;
++    public @NotNull Player getPlayer() {
++        return (Player) this.getEntity();
+     }
+ 
+     /**
+-     * Gets the amount remaining on the ground, if any
++     * Set if the item will fly at the player
++     * <p>Cancelling the event will set this value to false.</p>
+      *
+-     * @return amount remaining on the ground
++     * @param flyAtPlayer True for item to fly at player
+      */
+-    public int getRemaining() {
+-        return remaining;
++    public void setFlyAtPlayer(boolean flyAtPlayer) {
++        this.flyAtPlayer = flyAtPlayer;
+     }
+ 
+-    @Override
+-    public boolean isCancelled() {
+-        return cancel;
++    /**
++     * Gets if the item will fly at the player
++     *
++     * @return True if the item will fly at the player
++     */
++    public boolean getFlyAtPlayer() {
++        return this.flyAtPlayer;
+     }
++    // Paper End
+ 
+     @Override
+     public void setCancelled(boolean cancel) {
+-        this.cancel = cancel;
+-    }
+-
+-    @NotNull
+-    @Override
+-    public HandlerList getHandlers() {
+-        return handlers;
+-    }
+-
+-    @NotNull
+-    public static HandlerList getHandlerList() {
+-        return handlers;
++        super.setCancelled(cancel);
++        this.flyAtPlayer = !cancel; // Paper
+     }
+ }

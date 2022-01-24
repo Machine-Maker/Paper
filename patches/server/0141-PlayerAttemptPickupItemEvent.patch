@@ -5,7 +5,7 @@ Subject: [PATCH] PlayerAttemptPickupItemEvent
 
 
 diff --git a/src/main/java/net/minecraft/world/entity/item/ItemEntity.java b/src/main/java/net/minecraft/world/entity/item/ItemEntity.java
-index 68fdfba22ebb35023299c776d4764d4f1555f435..db42d22f58df5daefc41720206405dda4f7ad633 100644
+index f2987de7b7d24989e0e8a906d28e263b86eaf861..2518c351a094df8b3524be57b168f803f85f3ad1 100644
 --- a/src/main/java/net/minecraft/world/entity/item/ItemEntity.java
 +++ b/src/main/java/net/minecraft/world/entity/item/ItemEntity.java
 @@ -36,6 +36,7 @@ import net.minecraft.util.Mth;
@@ -38,4 +38,4 @@ index 68fdfba22ebb35023299c776d4764d4f1555f435..db42d22f58df5daefc41720206405dda
 +
              if (this.pickupDelay <= 0 && canHold > 0) {
                  itemstack.setCount(canHold);
-                 // Call legacy event
+                 // Call legacy event // Paper - this is now the main event
