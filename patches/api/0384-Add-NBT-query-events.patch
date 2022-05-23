@@ -1,0 +1,183 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jake Potrebic <jake.m.potrebic@gmail.com>
+Date: Sun, 22 May 2022 18:48:41 -0700
+Subject: [PATCH] Add NBT query events
+
+
+diff --git a/src/main/java/io/papermc/paper/event/packet/EntityQueryEvent.java b/src/main/java/io/papermc/paper/event/packet/EntityQueryEvent.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..6fbba216a0b285fcf37d8a6474e3536d6cf6bb9f
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/event/packet/EntityQueryEvent.java
+@@ -0,0 +1,47 @@
++package io.papermc.paper.event.packet;
++
++import org.bukkit.entity.Entity;
++import org.bukkit.entity.Player;
++import org.bukkit.event.HandlerList;
++import org.jetbrains.annotations.NotNull;
++
++public class EntityQueryEvent extends QueryEvent {
++
++    private static final HandlerList HANDLER_LIST = new HandlerList();
++
++    private Entity entity;
++
++    public EntityQueryEvent(final @NotNull Player player, final @NotNull Entity entity) {
++        super(player);
++        this.entity = entity;
++    }
++
++    /**
++     * Gets the entity being queried.
++     *
++     * @return the entity
++     */
++    public @NotNull Entity getEntity() {
++        return this.entity;
++    }
++
++    /**
++     * Sets the entity to be queried. Use
++     * {@link #setResult(Result)} with {@link Result#DENY} to
++     * cancel the query response.
++     *
++     * @param entity the entity to be queried
++     */
++    public void setEntity(@NotNull Entity entity) {
++        this.entity = entity;
++    }
++
++    @Override
++    public @NotNull HandlerList getHandlers() {
++        return HANDLER_LIST;
++    }
++
++    public static @NotNull HandlerList getHandlerList() {
++        return HANDLER_LIST;
++    }
++}
+diff --git a/src/main/java/io/papermc/paper/event/packet/QueryEvent.java b/src/main/java/io/papermc/paper/event/packet/QueryEvent.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..2aa1adb2f8eef1bbe4c2e6caf9a67e48b4099ec6
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/event/packet/QueryEvent.java
+@@ -0,0 +1,52 @@
++package io.papermc.paper.event.packet;
++
++import org.bukkit.entity.Player;
++import org.bukkit.event.Cancellable;
++import org.bukkit.event.server.ServerEvent;
++import org.jetbrains.annotations.NotNull;
++
++public abstract class QueryEvent extends ServerEvent implements Cancellable {
++
++    private final Player player;
++    private Result result = Result.DEFAULT;
++
++    protected QueryEvent(final @NotNull Player player) {
++        this.player = player;
++    }
++
++    public @NotNull Player getPlayer() {
++        return this.player;
++    }
++
++    /**
++     * Gets the query result.
++     *
++     * @return the result
++     * @see #setResult(Result)
++     */
++    public @NotNull Result getResult() {
++        return this.result;
++    }
++
++    /**
++     * Sets the result of this query. {@link Result#ALLOW}
++     * to allow the query to proceed, {@link Result#DENY}
++     * to deny the query and {@link Result#DEFAULT} to follow
++     * vanilla logic for allowing or denying the query.
++     *
++     * @param result the result
++     */
++    public void setResult(@NotNull Result result) {
++        this.result = result;
++    }
++
++    @Override
++    public boolean isCancelled() {
++        return this.result == Result.DENY;
++    }
++
++    @Override
++    public void setCancelled(boolean cancel) {
++        this.result = cancel ? Result.DENY : this.result == Result.DENY ? Result.DEFAULT : this.result;
++    }
++}
+diff --git a/src/main/java/io/papermc/paper/event/packet/TileStateQueryEvent.java b/src/main/java/io/papermc/paper/event/packet/TileStateQueryEvent.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..f66725e6191c9276d5c4ec61d90027343d3f4ad3
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/event/packet/TileStateQueryEvent.java
+@@ -0,0 +1,60 @@
++package io.papermc.paper.event.packet;
++
++import org.bukkit.Location;
++import org.bukkit.block.TileState;
++import org.bukkit.entity.Player;
++import org.bukkit.event.HandlerList;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++public class TileStateQueryEvent extends QueryEvent {
++
++    private static final HandlerList HANDLER_LIST = new HandlerList();
++
++    private final Location queryLocation;
++    private TileState state;
++
++    public TileStateQueryEvent(final @NotNull Player player, final @NotNull Location queryLocation, final @Nullable TileState state) {
++        super(player);
++        this.queryLocation = queryLocation;
++        this.state = state;
++    }
++
++    /**
++     * Get the location queried by the player.
++     *
++     * @return the location
++     */
++    public @NotNull Location getQueryLocation() {
++        return this.queryLocation;
++    }
++
++    /**
++     * Get the tile state being queried.
++     *
++     * @return the tile state
++     */
++    public @Nullable TileState getState() {
++        return this.state;
++    }
++
++    /**
++     * Set the tile state to be queried. Use
++     * {@link #setResult(Result)} and {@link Result#DENY} to
++     * cancel the query response.
++     *
++     * @param state the state to be queried.
++     */
++    public void setState(@Nullable TileState state) {
++        this.state = state;
++    }
++
++    @Override
++    public @NotNull HandlerList getHandlers() {
++        return HANDLER_LIST;
++    }
++
++    public static @NotNull HandlerList getHandlerList() {
++        return HANDLER_LIST;
++    }
++}

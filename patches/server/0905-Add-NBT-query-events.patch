@@ -1,0 +1,120 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jake Potrebic <jake.m.potrebic@gmail.com>
+Date: Sun, 22 May 2022 18:48:48 -0700
+Subject: [PATCH] Add NBT query events
+
+
+diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 1a1f3664554ae1f2b0110f615e79fa0568407d17..4ef5dc7be59fd3bac56eb2156f36746edd8b2d29 100644
+--- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -1254,13 +1254,20 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+     @Override
+     public void handleEntityTagQuery(ServerboundEntityTagQuery packet) {
+         PacketUtils.ensureRunningOnSameThread(packet, this, this.player.getLevel());
+-        if (this.player.hasPermissions(2)) {
++        if (true || this.player.hasPermissions(2)) { // Paper - move perm check to later
+             Entity entity = this.player.getLevel().getEntity(packet.getEntityId());
+ 
+             if (entity != null) {
++                // Paper start
++                final io.papermc.paper.event.packet.EntityQueryEvent event = new io.papermc.paper.event.packet.EntityQueryEvent(this.getCraftPlayer(), entity.getBukkitEntity());
++                event.callEvent();
++                if (event.getResult() == org.bukkit.event.Event.Result.ALLOW || (event.getResult() == org.bukkit.event.Event.Result.DEFAULT && this.player.hasPermissions(2))) {
++                entity = ((org.bukkit.craftbukkit.entity.CraftEntity) event.getEntity()).getHandle();
++                // Paper end
+                 CompoundTag nbttagcompound = entity.saveWithoutId(new CompoundTag());
+ 
+                 this.player.connection.send(new ClientboundTagQueryPacket(packet.getTransactionId(), nbttagcompound));
++                } // Paper
+             }
+ 
+         }
+@@ -1269,11 +1276,19 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+     @Override
+     public void handleBlockEntityTagQuery(ServerboundBlockEntityTagQuery packet) {
+         PacketUtils.ensureRunningOnSameThread(packet, this, this.player.getLevel());
+-        if (this.player.hasPermissions(2)) {
++        if (true || this.player.hasPermissions(2)) { // Paper - move perm check later
+             BlockEntity tileentity = this.player.getLevel().getBlockEntity(packet.getPos());
++            // Paper start
++            final Location queryLocation = net.minecraft.server.MCUtil.toLocation(this.player.getLevel(), packet.getPos());
++            final io.papermc.paper.event.packet.TileStateQueryEvent event = new io.papermc.paper.event.packet.TileStateQueryEvent(this.getCraftPlayer(), queryLocation, tileentity != null ? org.bukkit.craftbukkit.block.CraftBlockStates.getTileState(tilegentity, true) : null);
++            event.callEvent();
++            if (event.getResult() == org.bukkit.event.Event.Result.ALLOW || (event.getResult() == org.bukkit.event.Event.Result.DEFAULT && this.player.hasPermissions(2))) {
++                tileentity = event.getState() != null ? ((org.bukkit.craftbukkit.block.CraftBlockEntityState) event.getState()).getSnapshot() : null;
++            // Paper end
+             CompoundTag nbttagcompound = tileentity != null ? tileentity.saveWithoutMetadata() : null;
+ 
+             this.player.connection.send(new ClientboundTagQueryPacket(packet.getTransactionId(), nbttagcompound));
++            } // Paper
+         }
+     }
+ 
+diff --git a/src/main/java/org/bukkit/craftbukkit/block/CraftBlockEntityState.java b/src/main/java/org/bukkit/craftbukkit/block/CraftBlockEntityState.java
+index a2894f02ceb7c58f6eafe055e1ff47b197b100f2..97d6c31473cda3cafb6225f6c7e73302ca0186d6 100644
+--- a/src/main/java/org/bukkit/craftbukkit/block/CraftBlockEntityState.java
++++ b/src/main/java/org/bukkit/craftbukkit/block/CraftBlockEntityState.java
+@@ -68,7 +68,7 @@ public abstract class CraftBlockEntityState<T extends BlockEntity> extends Craft
+     }
+ 
+     // gets the cloned TileEntity which is used to store the captured data
+-    protected T getSnapshot() {
++    public T getSnapshot() { // Paper - protected -> public
+         return this.snapshot;
+     }
+ 
+diff --git a/src/main/java/org/bukkit/craftbukkit/block/CraftBlockStates.java b/src/main/java/org/bukkit/craftbukkit/block/CraftBlockStates.java
+index 9a4d79973af25853c4173a1df0131830505b623b..9492825383c71a1f885131d41b552c59c5d1c312 100644
+--- a/src/main/java/org/bukkit/craftbukkit/block/CraftBlockStates.java
++++ b/src/main/java/org/bukkit/craftbukkit/block/CraftBlockStates.java
+@@ -112,8 +112,8 @@ public final class CraftBlockStates {
+         }
+     };
+     // Paper start
+-    private static final Map<BlockEntityType<?>, BlockStateFactory<?>> FACTORIES_BY_BLOCK_ENTITY_TYPE = new HashMap<>();
+-    private static void register(BlockEntityType<?> type, BlockStateFactory<?> factory) {
++    private static final Map<BlockEntityType<?>, BlockEntityStateFactory<?, ?>> FACTORIES_BY_BLOCK_ENTITY_TYPE = new HashMap<>();
++    private static <T extends BlockEntity> void register(BlockEntityType<? extends T> type, BlockEntityStateFactory<T, ?> factory) {
+         FACTORIES_BY_BLOCK_ENTITY_TYPE.put(type, factory);
+     }
+     // Paper end
+@@ -167,7 +167,7 @@ public final class CraftBlockStates {
+             BiFunction<World, T, B> blockStateConstructor // Paper
+     ) {
+         // Paper start
+-        BlockStateFactory<B> factory = new BlockEntityStateFactory<>(blockStateType, blockStateConstructor, blockEntityType::create);
++        BlockEntityStateFactory<T, B> factory = new BlockEntityStateFactory<>(blockStateType, blockStateConstructor, blockEntityType::create);
+         for (net.minecraft.world.level.block.Block block : blockEntityType.validBlocks) {
+             CraftBlockStates.register(CraftMagicNumbers.getMaterial(block), factory);
+         }
+@@ -182,7 +182,7 @@ public final class CraftBlockStates {
+     // Paper start
+     private static BlockStateFactory<?> getFactory(Material material, BlockEntityType<?> type) {
+         if (type != null) {
+-            return CraftBlockStates.FACTORIES_BY_BLOCK_ENTITY_TYPE.getOrDefault(type, getFactory(material));
++            return CraftBlockStates.FACTORIES_BY_BLOCK_ENTITY_TYPE.containsKey(type) ? CraftBlockStates.FACTORIES_BY_BLOCK_ENTITY_TYPE.get(type) : getFactory(material);
+         } else {
+             return getFactory(material);
+         }
+@@ -262,6 +262,20 @@ public final class CraftBlockStates {
+         }
+         return factory.createBlockState(world, blockPosition, blockData, tileEntity);
+     }
++    // Paper start
++    @SuppressWarnings("unchecked")
++    public static <T extends BlockEntity> org.bukkit.block.TileState getTileState(T blockEntity, boolean useSnapshot) {
++        BlockEntityStateFactory<T, ?> factory = (BlockEntityStateFactory<T, ?>) FACTORIES_BY_BLOCK_ENTITY_TYPE.get(blockEntity.getType());
++        Preconditions.checkNotNull(factory, "Could not find factory with type %s", blockEntity.getType());
++        boolean prev = CraftBlockEntityState.DISABLE_SNAPSHOT;
++        CraftBlockEntityState.DISABLE_SNAPSHOT = !useSnapshot;
++        try {
++            return factory.createBlockState(blockEntity.getLevel() != null ? blockEntity.getLevel().getWorld() : null, blockEntity);
++        } finally {
++            CraftBlockEntityState.DISABLE_SNAPSHOT = prev;
++        }
++    }
++    // Paper end
+ 
+     private static boolean isTileEntityOptional(Material material) {
+         return material == Material.MOVING_PISTON;
