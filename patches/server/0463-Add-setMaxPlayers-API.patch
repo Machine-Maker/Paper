@@ -18,10 +18,10 @@ index 7528491e129b250da5cb505d7befceee8cfe74e6..fcd2f8514e60e1faafec787f162baf98
      private int simulationDistance;
      private boolean allowCheatsForAllPlayers;
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 2aab13270af76bcc1b62787e9910d23d5ab56add..50a540f796f4d418ae5f5377b39a08bc3e02543e 100644
+index e29bcd4c2e96992c59e9dfeec7dea9438c5764b7..61fae2926c7a3d8b937dece6bc8f0c3591c3113e 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -674,6 +674,13 @@ public final class CraftServer implements Server {
+@@ -675,6 +675,13 @@ public final class CraftServer implements Server {
          return this.playerList.getMaxPlayers();
      }
  

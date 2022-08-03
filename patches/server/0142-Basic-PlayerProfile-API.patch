@@ -621,7 +621,7 @@ index 4038bb76339d43f18770624bd7fecc79b8d7f2a9..2456edc11b29a92b1648937cd3dd6a9a
          String s1 = name.toLowerCase(Locale.ROOT);
          GameProfileCache.GameProfileInfo usercache_usercacheentry = (GameProfileCache.GameProfileInfo) this.profilesByName.get(s1);
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 75b9d496860d7f3a9d5f680cbdfe89860286522e..7013b11fc0cd5fbb5a7e62be45d84d54d3052237 100644
+index ec218145252fd1d515746cceeb4f7cedb3c9c768..8734febf976ed36b3d8417d5699c19cf82b622d3 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 @@ -244,6 +244,9 @@ import org.yaml.snakeyaml.error.MarkedYAMLException;
@@ -642,7 +642,7 @@ index 75b9d496860d7f3a9d5f680cbdfe89860286522e..7013b11fc0cd5fbb5a7e62be45d84d54
          CraftItemFactory.instance();
      }
  
-@@ -2596,5 +2600,37 @@ public final class CraftServer implements Server {
+@@ -2597,5 +2601,37 @@ public final class CraftServer implements Server {
      public boolean suggestPlayerNamesWhenNullTabCompletions() {
          return io.papermc.paper.configuration.GlobalConfiguration.get().commands.suggestPlayerNamesWhenNullTabCompletions;
      }

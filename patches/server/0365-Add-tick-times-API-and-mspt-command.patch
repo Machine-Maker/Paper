@@ -185,10 +185,10 @@ index ba99b3ffef6d5c46c3bb0b0de99a042ae000c196..564acfd222aaf111025d7e2c6b794381
 +    // Paper end
  }
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index bb930f03af4c649eba0dbde356ad098023070832..c9df003cc9b5cc1a9826086911be33f310fa7eaf 100644
+index 25d115a858cd5d9938991f374ca26f03a39d464f..f0ccf2a38d8187cd54c4131b468f93505b984282 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -2485,6 +2485,16 @@ public final class CraftServer implements Server {
+@@ -2486,6 +2486,16 @@ public final class CraftServer implements Server {
                  net.minecraft.server.MinecraftServer.getServer().tps15.getAverage()
          };
      }

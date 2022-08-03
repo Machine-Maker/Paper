@@ -76,7 +76,7 @@ index e3a62579067209c447f2fdcb76b2a11e489a376b..a8e18a168e8288ebea95bacd61a38039
  
      @Override
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index 83d05b2546fe54485daede323a0f6343b62d278a..d8c77533a44e316693535ea66fe6ae7f4994de5f 100644
+index 61904f4d3160d83f87d66fd9f86acf54ab31adc6..c32f09e993ef25876373a34d148b0452ea03bcf0 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
 @@ -1129,7 +1129,7 @@ public class ServerPlayer extends Player {
@@ -89,7 +89,7 @@ index 83d05b2546fe54485daede323a0f6343b62d278a..d8c77533a44e316693535ea66fe6ae7f
  
                  playerlist.sendPlayerPermissionLevel(this);
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index d47cec95660d7754921d06f7316cc6ab4ab6016a..3526e4f179b36d1ab61488e4b9c2404d5754c258 100644
+index abec96786387e12042c8a8942c5fbb5295f9b4b0..6e10d80a6394b7f5d69a1cd2380a1456aaa09094 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -3499,7 +3499,7 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
@@ -102,10 +102,10 @@ index d47cec95660d7754921d06f7316cc6ab4ab6016a..3526e4f179b36d1ab61488e4b9c2404d
      }
  
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index e8e31ddaa7fa87b9854961dd44abff9ddb6a6142..4c6c9aa8b3305f5ab4f7b8d356e860da169fb1db 100644
+index a87ae0431abd15f3b6282d2dac36f787cc7e8858..a3aee02787f3b0c7f8cd1412b63ca6dbf19d8032 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -951,8 +951,8 @@ public final class CraftServer implements Server {
+@@ -952,8 +952,8 @@ public final class CraftServer implements Server {
          org.spigotmc.SpigotConfig.init((File) console.options.valueOf("spigot-settings")); // Spigot
          this.console.paperConfigurations.reloadConfigs(this.console);
          for (ServerLevel world : this.console.getAllLevels()) {

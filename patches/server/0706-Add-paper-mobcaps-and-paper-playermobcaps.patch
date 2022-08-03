@@ -265,7 +265,7 @@ index 0000000000000000000000000000000000000000..2e02d94e2903c48f6d08e743c1cf8bad
 +    }
 +}
 diff --git a/src/main/java/net/minecraft/world/level/NaturalSpawner.java b/src/main/java/net/minecraft/world/level/NaturalSpawner.java
-index 25256c422a3274ed75c9a9cd20fbbb709c8b298e..edd32b6d5a96a6fffe641a23c27921e6dcf37a54 100644
+index b031dece541d2765f9488a5ffcb0d339c38ccc9e..21941af701eab308f87ca64b2801c55444814acb 100644
 --- a/src/main/java/net/minecraft/world/level/NaturalSpawner.java
 +++ b/src/main/java/net/minecraft/world/level/NaturalSpawner.java
 @@ -191,6 +191,16 @@ public final class NaturalSpawner {
@@ -286,10 +286,10 @@ index 25256c422a3274ed75c9a9cd20fbbb709c8b298e..edd32b6d5a96a6fffe641a23c27921e6
          // Paper start - add parameters and int ret type
          spawnCategoryForChunk(group, world, chunk, checker, runner, Integer.MAX_VALUE, null);
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 3ebf81b45cf1897471a3262d23cc59dd45652b6d..c648acdd0066f6c480d08927a3c72524cde32ec7 100644
+index 8148d8a56479d2b9c4dd7a9c8a1bdbd5b1257ca5..07b31e69c7cfdc961a26739a0127ed06a33c9acc 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -2156,6 +2156,11 @@ public final class CraftServer implements Server {
+@@ -2157,6 +2157,11 @@ public final class CraftServer implements Server {
  
      @Override
      public int getSpawnLimit(SpawnCategory spawnCategory) {

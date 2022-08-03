@@ -9,7 +9,7 @@ thread dumps at an interval until the point of crash.
 This will help diagnose what was going on in that time before the crash.
 
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index d65423b8d7b69db79de05587efba13008602f743..afce3acc552df092636b205964e06b399b7db8e2 100644
+index 3509785412395aec7d316fcf37d58fb7cb1a9e5f..25aac194eb486a5b8707aa0a655fd8259ad7409c 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
 +++ b/src/main/java/net/minecraft/server/MinecraftServer.java
 @@ -1044,6 +1044,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
@@ -21,7 +21,7 @@ index d65423b8d7b69db79de05587efba13008602f743..afce3acc552df092636b205964e06b39
              long start = System.nanoTime(), curTime, tickSection = start; // Paper - Further improve server tick loop
              lastTick = start - TICK_TIME; // Paper
 diff --git a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
-index ed3662f2d237fc6a11cb3f6a2e476dc014ba4586..0944d339c76b09f183b3a1e191955300fc24cd97 100644
+index bada827fe2a8a58d029d9459bf576d598e4a196f..a7fab8d6d3291933516e686f0f23c9057397bcf6 100644
 --- a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
 +++ b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
 @@ -202,6 +202,7 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
@@ -33,10 +33,10 @@ index ed3662f2d237fc6a11cb3f6a2e476dc014ba4586..0944d339c76b09f183b3a1e191955300
          com.destroystokyo.paper.Metrics.PaperMetrics.startMetrics();
          com.destroystokyo.paper.VersionHistoryManager.INSTANCE.getClass(); // load version history now
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index a60b93a15d5cf80745eb114b393465ff1c53f444..cf9f10a61f87130a4a58c09edce7ef14fbc6ae30 100644
+index 95894be7db471cb15e67cbed17768452c8e3c6ff..8df4d33872725d60607adc6b866ee0f1319037de 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -911,6 +911,7 @@ public final class CraftServer implements Server {
+@@ -912,6 +912,7 @@ public final class CraftServer implements Server {
  
      @Override
      public void reload() {
@@ -44,7 +44,7 @@ index a60b93a15d5cf80745eb114b393465ff1c53f444..cf9f10a61f87130a4a58c09edce7ef14
          this.reloadCount++;
          this.configuration = YamlConfiguration.loadConfiguration(this.getConfigFile());
          this.commandsConfiguration = YamlConfiguration.loadConfiguration(this.getCommandsConfigFile());
-@@ -999,6 +1000,7 @@ public final class CraftServer implements Server {
+@@ -1000,6 +1001,7 @@ public final class CraftServer implements Server {
          this.enablePlugins(PluginLoadOrder.STARTUP);
          this.enablePlugins(PluginLoadOrder.POSTWORLD);
          this.getPluginManager().callEvent(new ServerLoadEvent(ServerLoadEvent.LoadType.RELOAD));

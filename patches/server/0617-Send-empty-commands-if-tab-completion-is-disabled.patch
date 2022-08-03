@@ -5,10 +5,10 @@ Subject: [PATCH] Send empty commands if tab completion is disabled
 
 
 diff --git a/src/main/java/net/minecraft/commands/Commands.java b/src/main/java/net/minecraft/commands/Commands.java
-index 6ad3fe4718a0db17ad6115753e533bf069ce57c6..9c0b2679964f864671ff4041163d1065c8d9cf84 100644
+index 7acd88dbeed4290a76e5e1792915ef336392929c..6c2214ea5177d76df8ee869589267e296cf67585 100644
 --- a/src/main/java/net/minecraft/commands/Commands.java
 +++ b/src/main/java/net/minecraft/commands/Commands.java
-@@ -358,7 +358,12 @@ public class Commands {
+@@ -378,7 +378,12 @@ public class Commands {
      }
  
      public void sendCommands(ServerPlayer player) {

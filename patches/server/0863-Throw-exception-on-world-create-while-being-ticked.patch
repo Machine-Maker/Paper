@@ -45,10 +45,10 @@ index 300f6af9e01ce966ca03110c444139f1ae7e691c..5113e04bae5b1a1944b3e80889d99859
          this.profiler.popPush("connection");
          MinecraftTimings.connectionTimer.startTiming(); // Spigot
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 252139711a2bf63449e03c5593a81f2f7ed3e7c9..f511e3824d59a8de3ab00737ffc98147742964e5 100644
+index 78d9b2ef8716439a6eddc4580ef67934068abf2c..5906381d1a388838e689218468fd37910c2f0e8c 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -855,6 +855,11 @@ public final class CraftServer implements Server {
+@@ -856,6 +856,11 @@ public final class CraftServer implements Server {
          return new ArrayList<World>(this.worlds.values());
      }
  
@@ -60,7 +60,7 @@ index 252139711a2bf63449e03c5593a81f2f7ed3e7c9..f511e3824d59a8de3ab00737ffc98147
      public DedicatedPlayerList getHandle() {
          return this.playerList;
      }
-@@ -1139,6 +1144,7 @@ public final class CraftServer implements Server {
+@@ -1140,6 +1145,7 @@ public final class CraftServer implements Server {
      @Override
      public World createWorld(WorldCreator creator) {
          Preconditions.checkState(this.console.getAllLevels().iterator().hasNext(), "Cannot create additional worlds on STARTUP");
@@ -68,7 +68,7 @@ index 252139711a2bf63449e03c5593a81f2f7ed3e7c9..f511e3824d59a8de3ab00737ffc98147
          Validate.notNull(creator, "Creator may not be null");
  
          String name = creator.name();
-@@ -1263,6 +1269,7 @@ public final class CraftServer implements Server {
+@@ -1264,6 +1270,7 @@ public final class CraftServer implements Server {
  
      @Override
      public boolean unloadWorld(World world, boolean save) {

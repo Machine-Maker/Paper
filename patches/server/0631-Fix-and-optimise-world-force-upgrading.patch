@@ -356,10 +356,10 @@ index 7bfb0716964af5ee300150d500c97e8f90c849d4..c881d15efa94fc379ed2817a534fef3a
          return this.regionCache.getAndMoveToFirst(ChunkPos.asLong(chunkcoordintpair.getRegionX(), chunkcoordintpair.getRegionZ()));
      }
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index c330d63cc8d40092fdf70e5aea6f6ee9e8521e88..acc385d4b6852a55e93a5c19755a3d7f59a16eea 100644
+index 494922f878c14de4e18b913d3d6b0fb93b58a802..192f900b205b76fadc598556307da06c95abe656 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -1204,12 +1204,7 @@ public final class CraftServer implements Server {
+@@ -1205,12 +1205,7 @@ public final class CraftServer implements Server {
          }
          worlddata.checkName(name);
          worlddata.setModdedInfo(this.console.getServerModName(), this.console.getModdedStatus().shouldReportAsModified());
@@ -373,7 +373,7 @@ index c330d63cc8d40092fdf70e5aea6f6ee9e8521e88..acc385d4b6852a55e93a5c19755a3d7f
  
          long j = BiomeManager.obfuscateSeed(creator.seed());
          List<CustomSpawner> list = ImmutableList.of(new PhantomSpawner(), new PatrolSpawner(), new CatSpawner(), new VillageSiege(), new WanderingTraderSpawner(worlddata));
-@@ -1221,6 +1216,13 @@ public final class CraftServer implements Server {
+@@ -1222,6 +1217,13 @@ public final class CraftServer implements Server {
              biomeProvider = generator.getDefaultBiomeProvider(worldInfo);
          }
  

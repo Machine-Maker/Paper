@@ -5,10 +5,10 @@ Subject: [PATCH] WorldCreator#keepSpawnLoaded
 
 
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 962d3fb3479047f798f6392d7f4e1983ee6d001e..252139711a2bf63449e03c5593a81f2f7ed3e7c9 100644
+index 8b4e62226ca33e079820e772b7d63d78f05b97d5..78d9b2ef8716439a6eddc4580ef67934068abf2c 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -1248,6 +1248,7 @@ public final class CraftServer implements Server {
+@@ -1249,6 +1249,7 @@ public final class CraftServer implements Server {
          internal.setSpawnSettings(true, true);
          // Paper - move up
  

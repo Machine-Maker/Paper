@@ -5,10 +5,10 @@ Subject: [PATCH] Expose game version
 
 
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index e5c5a514e6b7bdf663d33074557e34372f18ea77..86402126b13e5e6542f880cbdc978eb581d33a8a 100644
+index 1b71459d8e08d098694cf73aa6410203230046cb..e8fa1c5a922ff041ffcb98b0b36b542335f6064a 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -579,6 +579,13 @@ public final class CraftServer implements Server {
+@@ -580,6 +580,13 @@ public final class CraftServer implements Server {
          return this.bukkitVersion;
      }
  

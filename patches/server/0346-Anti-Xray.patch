@@ -1044,7 +1044,7 @@ index 7825d6f0fdcfda6212cff8033ec55fb7db236154..000853110c7a89f2d0403a7a2737025a
  
      public ClientboundLevelChunkWithLightPacket(FriendlyByteBuf buf) {
 diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
-index d97e017289783cd8795e055616dd5931bb6147cd..7c4eded1135e50f2ffea069de7bcd77bd80d0ac1 100644
+index 3c305ae4c152ff17e9fa27616d9ecdb0c2988101..c0ca4a11772f60d31fe81ef788112be6d2e63636 100644
 --- a/src/main/java/net/minecraft/server/level/ChunkMap.java
 +++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
 @@ -618,7 +618,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
@@ -1178,7 +1178,7 @@ index 41e61e6c128f22224665af3f07cd11d69a43062b..54e57791f6220325d05939decae46dc4
          }
  
 diff --git a/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java b/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
-index 0493be4a898962ef80aa6ae6fb61f0a755540ab8..fb42b212805c8ea9ae5be8b2a515a37ecda28535 100644
+index 3a613d3fb6240a504724ba42b9aadaa0881b3ac1..afc443f36b26e9493fa0a530891b2edd7f3f6703 100644
 --- a/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
 +++ b/src/main/java/net/minecraft/world/level/chunk/LevelChunk.java
 @@ -93,7 +93,7 @@ public class LevelChunk extends ChunkAccess {
@@ -1457,7 +1457,7 @@ index 9a2bf744abd8916d492e901be889223591bac3fd..a27fce0f1af9776a713bf1b5277869ed
      int getSerializedSize();
  
 diff --git a/src/main/java/net/minecraft/world/level/chunk/storage/ChunkSerializer.java b/src/main/java/net/minecraft/world/level/chunk/storage/ChunkSerializer.java
-index f4bf0ecde863f1795d764d8cc8d6525af02356ea..3c61be19c65b2da9283b2aba2b4e66f84bac6e1c 100644
+index 648719a58e62105064ac6b51c6f5e7867ff0b7a9..89c367f542aee35ba9f596d678bfeb5412c1697d 100644
 --- a/src/main/java/net/minecraft/world/level/chunk/storage/ChunkSerializer.java
 +++ b/src/main/java/net/minecraft/world/level/chunk/storage/ChunkSerializer.java
 @@ -69,7 +69,7 @@ import org.slf4j.Logger;
@@ -1524,10 +1524,10 @@ index 1827fdc551095ab411d6b43b94106273f53386c8..7f23c69e7d6232190a2c75cbc79e1ea5
  
      public CraftChunk(net.minecraft.world.level.chunk.LevelChunk chunk) {
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index c8979c8f51cf07824fc2780c5daccc30922bbd80..bb930f03af4c649eba0dbde356ad098023070832 100644
+index 7aa39ecb4b422ffb36475b5f6a19d27eddc15c02..25d115a858cd5d9938991f374ca26f03a39d464f 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -2235,7 +2235,7 @@ public final class CraftServer implements Server {
+@@ -2236,7 +2236,7 @@ public final class CraftServer implements Server {
      public ChunkGenerator.ChunkData createChunkData(World world) {
          Validate.notNull(world, "World cannot be null");
          ServerLevel handle = ((CraftWorld) world).getHandle();

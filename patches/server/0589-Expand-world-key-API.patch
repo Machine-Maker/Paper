@@ -20,10 +20,10 @@ index ee5e59c37301d9a806e2f696d52d9d217b232833..bb5d22125b6cd4e60d2b7e2e00af158c
      // Paper end
  }
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 462ffe647b11185001a08b09e74773b8831a3b46..e90ef57567928fdfd08fd16ce84503b07bdfe499 100644
+index e12d672a4288b2f626d05e4ab63365fe1ef4b4cd..d809aa00fa4e5786d7a5f5631278e92a4caa7200 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -1143,9 +1143,15 @@ public final class CraftServer implements Server {
+@@ -1144,9 +1144,15 @@ public final class CraftServer implements Server {
          File folder = new File(this.getWorldContainer(), name);
          World world = this.getWorld(name);
  
@@ -41,7 +41,7 @@ index 462ffe647b11185001a08b09e74773b8831a3b46..e90ef57567928fdfd08fd16ce84503b0
  
          if ((folder.exists()) && (!folder.isDirectory())) {
              throw new IllegalArgumentException("File exists with the name '" + name + "' and isn't a folder");
-@@ -1220,7 +1226,7 @@ public final class CraftServer implements Server {
+@@ -1221,7 +1227,7 @@ public final class CraftServer implements Server {
          } else if (name.equals(levelName + "_the_end")) {
              worldKey = net.minecraft.world.level.Level.END;
          } else {
@@ -50,7 +50,7 @@ index 462ffe647b11185001a08b09e74773b8831a3b46..e90ef57567928fdfd08fd16ce84503b0
          }
  
          ServerLevel internal = (ServerLevel) new ServerLevel(this.console, console.executor, worldSession, worlddata, worldKey, worlddimension, this.getServer().progressListenerFactory.create(11),
-@@ -1312,6 +1318,15 @@ public final class CraftServer implements Server {
+@@ -1313,6 +1319,15 @@ public final class CraftServer implements Server {
          return null;
      }
  

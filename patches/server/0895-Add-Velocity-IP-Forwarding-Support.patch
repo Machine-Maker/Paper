@@ -197,10 +197,10 @@ index df1a1681cdd5f055ff4394aa6990b252a3e25ea8..4be871c79cebfa62b6d2a22674ad2cde
      }
  
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 1cec39362b6f9f23c8e6c8b45f5fd254c8e08efe..4212568bf8de6988c71f43d3e2152fa0fe51d0d7 100644
+index 82a4b7057fdffabc4292542db38c02c17501fefd..35854d32fa2522ef25556b2aa4af460a5f26488e 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -784,7 +784,7 @@ public final class CraftServer implements Server {
+@@ -785,7 +785,7 @@ public final class CraftServer implements Server {
      @Override
      public long getConnectionThrottle() {
          // Spigot Start - Automatically set connection throttle for bungee configurations

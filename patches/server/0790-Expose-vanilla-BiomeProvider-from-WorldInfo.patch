@@ -18,10 +18,10 @@ index 75651db840072806bb4ef15c4de370fdf6b46c05..2699381f72ff00bb0a9711e3b286e820
                  biomeProvider = gen.getDefaultBiomeProvider(worldInfo);
              }
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index ed3f27e605a6d9454953a6fd8b0e784b1b89acf3..94961c271b4fc1b8b2b6c4d35e9c2ac685ac3268 100644
+index 8a8f0f163416bd47ce8a2a03f26dc58dbde2d54c..f2258a14d1768a05c7c33916631ccff4263ef6e6 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -1212,7 +1212,7 @@ public final class CraftServer implements Server {
+@@ -1213,7 +1213,7 @@ public final class CraftServer implements Server {
          net.minecraft.core.Registry<LevelStem> iregistry = worlddata.worldGenSettings().dimensions();
          LevelStem worlddimension = (LevelStem) iregistry.get(actualDimension);
  

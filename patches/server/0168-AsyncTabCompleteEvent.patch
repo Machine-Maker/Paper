@@ -89,10 +89,10 @@ index e40eeb5e04d96fb55283ded82cea0a5539a2fad5..90bd5c1a010a3a9d24328e5c71905360
  
      @Override
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 7013b11fc0cd5fbb5a7e62be45d84d54d3052237..bbf9550e7a7c78e961160ef09466e5f962172b6c 100644
+index 8734febf976ed36b3d8417d5699c19cf82b622d3..da540eb949b29457c3fe43e178061ef2546b136b 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -2086,7 +2086,7 @@ public final class CraftServer implements Server {
+@@ -2087,7 +2087,7 @@ public final class CraftServer implements Server {
              offers = this.tabCompleteChat(player, message);
          }
  

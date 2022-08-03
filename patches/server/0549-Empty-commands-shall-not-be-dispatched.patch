@@ -5,10 +5,10 @@ Subject: [PATCH] Empty commands shall not be dispatched
 
 
 diff --git a/src/main/java/net/minecraft/commands/Commands.java b/src/main/java/net/minecraft/commands/Commands.java
-index b141d251eedd31bd115342b878afd68dc51a8518..6ad3fe4718a0db17ad6115753e533bf069ce57c6 100644
+index d993488c0880b9773ac456e5659b39856ad887fd..7acd88dbeed4290a76e5e1792915ef336392929c 100644
 --- a/src/main/java/net/minecraft/commands/Commands.java
 +++ b/src/main/java/net/minecraft/commands/Commands.java
-@@ -245,6 +245,7 @@ public class Commands {
+@@ -247,6 +247,7 @@ public class Commands {
          command = event.getCommand();
  
          String[] args = command.split(" ");

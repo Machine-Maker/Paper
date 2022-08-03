@@ -266,10 +266,10 @@ index 6cc70d6eb84fb819fb7f1b8b1ef1bbb4715315e5..1ec5facab133f265b280738afe991759
          Iterator iterator = list.iterator();
  
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index a2750cba8540caa9f12f5d5179b51f7753d38bba..e5c5a514e6b7bdf663d33074557e34372f18ea77 100644
+index 2cdfd4d3d2d2a084170e4ccb1c127561ae110299..1b71459d8e08d098694cf73aa6410203230046cb 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -1219,7 +1219,7 @@ public final class CraftServer implements Server {
+@@ -1220,7 +1220,7 @@ public final class CraftServer implements Server {
              return false;
          }
  

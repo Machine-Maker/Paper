@@ -30,14 +30,13 @@ index 899008b2980d13f1be6280cd8cb959c53a29bebf..f875507241ac6769545e91cd3285232b
      private RedirectModifier<S> modifier = null;
      private boolean forks;
 diff --git a/src/main/java/net/minecraft/commands/Commands.java b/src/main/java/net/minecraft/commands/Commands.java
-index 9c0b2679964f864671ff4041163d1065c8d9cf84..27093aed1f4112a5414671fd5d9c4e683011506d 100644
+index 6c2214ea5177d76df8ee869589267e296cf67585..928b1b052a6ce6a6685e31f1987b6d085bbfea30 100644
 --- a/src/main/java/net/minecraft/commands/Commands.java
 +++ b/src/main/java/net/minecraft/commands/Commands.java
-@@ -212,7 +212,13 @@ public class Commands {
-         if (environment.includeIntegrated) {
-             PublishCommand.register(this.dispatcher);
+@@ -215,6 +215,13 @@ public class Commands {
          }
--
+         this.vanillaCommandNodes.addAll(this.dispatcher.getRoot().getChildren()); // Paper
+ 
 +        // Paper start
 +        for (final CommandNode<CommandSourceStack> node : this.dispatcher.getRoot().getChildren()) {
 +            if (node.getRequirement() == com.mojang.brigadier.builder.ArgumentBuilder.<CommandSourceStack>defaultRequirement()) {

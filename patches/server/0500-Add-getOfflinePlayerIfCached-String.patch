@@ -5,10 +5,10 @@ Subject: [PATCH] Add getOfflinePlayerIfCached(String)
 
 
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 50a540f796f4d418ae5f5377b39a08bc3e02543e..462ffe647b11185001a08b09e74773b8831a3b46 100644
+index 61fae2926c7a3d8b937dece6bc8f0c3591c3113e..e12d672a4288b2f626d05e4ab63365fe1ef4b4cd 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -1803,6 +1803,28 @@ public final class CraftServer implements Server {
+@@ -1804,6 +1804,28 @@ public final class CraftServer implements Server {
          return result;
      }
  

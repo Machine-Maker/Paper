@@ -59,7 +59,7 @@ index da6250df1c5f3385b683cffde47754bca4606f5e..3384501f83d445f45aa8233e98c7597d
      public void removeCommand(String name) {
          this.children.remove(name);
 diff --git a/src/main/java/net/minecraft/commands/CommandSourceStack.java b/src/main/java/net/minecraft/commands/CommandSourceStack.java
-index 3308d684fc6cd0a83e190a52693b29d30e0087cb..fa258155b1cbdd8efde15ec59986d0ab56245ddd 100644
+index 972fffd589bf8aec9dd3fcd4127a2d48313c6efa..0b87b709a50b1bcd2f211605b91252e99e7e435b 100644
 --- a/src/main/java/net/minecraft/commands/CommandSourceStack.java
 +++ b/src/main/java/net/minecraft/commands/CommandSourceStack.java
 @@ -39,7 +39,7 @@ import net.minecraft.world.phys.Vec2;
@@ -99,10 +99,10 @@ index 3308d684fc6cd0a83e190a52693b29d30e0087cb..fa258155b1cbdd8efde15ec59986d0ab
      public boolean hasPermission(int level) {
          // CraftBukkit start
 diff --git a/src/main/java/net/minecraft/commands/Commands.java b/src/main/java/net/minecraft/commands/Commands.java
-index c4315531f93f4ed68b4621157b02572886e1ed30..b141d251eedd31bd115342b878afd68dc51a8518 100644
+index 68ef4702969585089b9b34fe7359d20144fa1a0f..d993488c0880b9773ac456e5659b39856ad887fd 100644
 --- a/src/main/java/net/minecraft/commands/Commands.java
 +++ b/src/main/java/net/minecraft/commands/Commands.java
-@@ -396,6 +396,7 @@ public class Commands {
+@@ -416,6 +416,7 @@ public class Commands {
              bukkit.add(node.getName());
          }
          // Paper start - Async command map building
@@ -110,7 +110,7 @@ index c4315531f93f4ed68b4621157b02572886e1ed30..b141d251eedd31bd115342b878afd68d
          net.minecraft.server.MinecraftServer.getServer().execute(() -> {
             runSync(player, bukkit, rootcommandnode);
          });
-@@ -403,6 +404,7 @@ public class Commands {
+@@ -423,6 +424,7 @@ public class Commands {
  
      private void runSync(ServerPlayer player, Collection<String> bukkit, RootCommandNode<SharedSuggestionProvider> rootcommandnode) {
          // Paper end - Async command map building
@@ -118,7 +118,7 @@ index c4315531f93f4ed68b4621157b02572886e1ed30..b141d251eedd31bd115342b878afd68d
          PlayerCommandSendEvent event = new PlayerCommandSendEvent(player.getBukkitEntity(), new LinkedHashSet<>(bukkit));
          event.getPlayer().getServer().getPluginManager().callEvent(event);
  
-@@ -421,6 +423,11 @@ public class Commands {
+@@ -441,6 +443,11 @@ public class Commands {
  
          while (iterator.hasNext()) {
              CommandNode<CommandSourceStack> commandnode2 = (CommandNode) iterator.next();

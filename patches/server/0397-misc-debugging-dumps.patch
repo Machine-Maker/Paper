@@ -74,10 +74,10 @@ index 42cdb2c70f6b906d27c4b1409df92f7459bf2c1b..930da83ff754bab6b6b6fff651df417b
                  this.connection.send(new ClientboundDisconnectPacket(ichatmutablecomponent));
                  this.connection.disconnect(ichatmutablecomponent);
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 86402126b13e5e6542f880cbdc978eb581d33a8a..8d4388df7e62016df262e377e5f75cc44e17e284 100644
+index e8fa1c5a922ff041ffcb98b0b36b542335f6064a..68ad6828e16cc6b085769313f9faaf254aa3acbf 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -1002,6 +1002,7 @@ public final class CraftServer implements Server {
+@@ -1003,6 +1003,7 @@ public final class CraftServer implements Server {
                  plugin.getDescription().getFullName(),
                  "This plugin is not properly shutting down its async tasks when it is being reloaded.  This may cause conflicts with the newly loaded version of the plugin"
              ));
