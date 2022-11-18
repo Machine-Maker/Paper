@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    if: ${{ (github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'build-pr')) || (github.event.action == 'labeled' && 'github.event.label.name == 'build-pr') }}
+    if: (github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'build-pr')) || (github.event.action == 'labeled' && github.event.label.name == 'build-pr')
     runs-on: ubuntu-latest
     strategy:
       matrix:
