@@ -1,0 +1,38 @@
+# Builds a jar based on the pr branch and posts the artifact in the PR for download
+
+name: Build Jar for PR
+on:
+  pull_request:
+    types:
+      - labeled
+      - synchronize
+
+jobs:
+  build:
+    if: ${{ github.event.label.name == 'build-pr' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        java: [17]
+      fail-fast: true
+    steps:
+      - uses: actions/checkout@v3
+      - name: JDK ${{ matrix.java }}
+        uses: actions/setup-java@v3.6.0
+        with:
+          java-version: ${{ matrix.java }}
+          cache: 'gradle'
+          distribution: 'temurin'
+      - name: Patch and build
+        run: |
+          git config --global user.email "no-reply@github.com"
+          git config --global user.name "Github Actions"
+          ./gradlew applyPatches --stacktrace
+          ./gradlew createReobfPaperclipJar --stacktrace
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: paperclip
+          path: build/libs/paper-paperclip-*-reobf.jar
+
