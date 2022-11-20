@@ -36,7 +36,13 @@ jobs:
           name: paperclip
           path: build/libs/paper-paperclip-*-reobf.jar
 
-      - uses: actions/github-script@v6
+  comment:
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update comment
+        uses: actions/github-script@v6
         with:
           script: |
             async function upsertComment(owner, repo, issue_number, purpose, body) {
