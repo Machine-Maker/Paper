@@ -1,0 +1,166 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jake Potrebic <jake.m.potrebic@gmail.com>
+Date: Sat, 25 Mar 2023 10:13:53 -0700
+Subject: [PATCH] Add RecipeCraftEvent
+
+
+diff --git a/src/main/java/io/papermc/paper/event/inventory/ClickCauseImpl.java b/src/main/java/io/papermc/paper/event/inventory/ClickCauseImpl.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..c653366b5b926d928f8e2221882bcb21f6357619
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/event/inventory/ClickCauseImpl.java
+@@ -0,0 +1,9 @@
++package io.papermc.paper.event.inventory;
++
++import org.bukkit.event.inventory.ClickType;
++import org.checkerframework.checker.nullness.qual.NonNull;
++import org.checkerframework.framework.qual.DefaultQualifier;
++
++@DefaultQualifier(NonNull.class)
++public record ClickCauseImpl(ClickType clickType, int slot) implements RecipeCraftEvent.ClickCause {
++}
+diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 2d8488b9aa088b6d5f0c7e557b8ad0b29bc4cd88..d0ab4840a3bcfc28d12fa7a80e1d210304f77e49 100644
+--- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -3184,7 +3184,7 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+                         switch (event.getResult()) {
+                             case ALLOW:
+                             case DEFAULT:
+-                                this.player.containerMenu.clicked(i, packet.getButtonNum(), packet.getClickType(), this.player);
++                                this.player.containerMenu.clicked(i, packet.getButtonNum(), packet.getClickType(), this.player, event); // Paper
+                                 break;
+                             case DENY:
+                                 /* Needs enum constructor in InventoryAction
+diff --git a/src/main/java/net/minecraft/world/inventory/AbstractContainerMenu.java b/src/main/java/net/minecraft/world/inventory/AbstractContainerMenu.java
+index c84908095a93d42826b21bf5f3490410fb0a5708..009218015c219c263535e2c42ced8db717c1b6a5 100644
+--- a/src/main/java/net/minecraft/world/inventory/AbstractContainerMenu.java
++++ b/src/main/java/net/minecraft/world/inventory/AbstractContainerMenu.java
+@@ -377,9 +377,20 @@ public abstract class AbstractContainerMenu {
+ 
+     public abstract ItemStack quickMoveStack(Player player, int slot);
+ 
++    // Paper start
++    public ItemStack quickMoveStack(final Player player, final int slot, @Nullable final io.papermc.paper.event.inventory.RecipeCraftEvent.ClickCause clickCause) {
++        return this.quickMoveStack(player, slot);
++    }
++    // Paper start
++
+     public void clicked(int slotIndex, int button, ClickType actionType, Player player) {
++        // Paper start
++        this.clicked(slotIndex, button, actionType, player, null);
++    }
++    public void clicked(int slotIndex, int button, ClickType actionType, Player player, @Nullable final org.bukkit.event.inventory.InventoryClickEvent event) {
++        // Paper end
+         try {
+-            this.doClick(slotIndex, button, actionType, player);
++            this.doClick(slotIndex, button, actionType, player, event); // Paper
+         } catch (Exception exception) {
+             CrashReport crashreport = CrashReport.forThrowable(exception, "Container click");
+             CrashReportCategory crashreportsystemdetails = crashreport.addCategory("Click info");
+@@ -398,7 +409,7 @@ public abstract class AbstractContainerMenu {
+         }
+     }
+ 
+-    private void doClick(int slotIndex, int button, ClickType actionType, Player player) {
++    private void doClick(int slotIndex, int button, ClickType actionType, Player player, @Nullable final org.bukkit.event.inventory.InventoryClickEvent clickEvent) { // Paper
+         Inventory playerinventory = player.getInventory();
+         Slot slot;
+         ItemStack itemstack;
+@@ -433,7 +444,7 @@ public abstract class AbstractContainerMenu {
+                     if (false && this.quickcraftSlots.size() == 1) { // CraftBukkit - treat everything as a drag since we are unable to easily call InventoryClickEvent instead
+                         k = ((Slot) this.quickcraftSlots.iterator().next()).index;
+                         this.resetQuickCraft();
+-                        this.doClick(k, this.quickcraftType, ClickType.PICKUP, player);
++                        this.doClick(k, this.quickcraftType, ClickType.PICKUP, player, clickEvent); // Paper
+                         return;
+                     }
+ 
+@@ -536,7 +547,8 @@ public abstract class AbstractContainerMenu {
+                         return;
+                     }
+ 
+-                    for (itemstack = this.quickMoveStack(player, slotIndex); !itemstack.isEmpty() && ItemStack.isSame(slot.getItem(), itemstack); itemstack = this.quickMoveStack(player, slotIndex)) {
++                    final io.papermc.paper.event.inventory.RecipeCraftEvent.ClickCause clickCause = clickEvent != null ? new io.papermc.paper.event.inventory.ClickCauseImpl(clickEvent.getClick(), clickEvent.getSlot()) : null;
++                    for (itemstack = this.quickMoveStack(player, slotIndex, clickCause); !itemstack.isEmpty() && ItemStack.isSame(slot.getItem(), itemstack); itemstack = this.quickMoveStack(player, slotIndex, clickCause)) { // Paper
+                         ;
+                     }
+                 } else {
+diff --git a/src/main/java/net/minecraft/world/inventory/CraftingMenu.java b/src/main/java/net/minecraft/world/inventory/CraftingMenu.java
+index 6d4847c722d0bcfe54d3fad73f73284cb3e3adde..bc0dd80b075452d71c8c438413f1818adae495f9 100644
+--- a/src/main/java/net/minecraft/world/inventory/CraftingMenu.java
++++ b/src/main/java/net/minecraft/world/inventory/CraftingMenu.java
+@@ -135,13 +135,39 @@ public class CraftingMenu extends RecipeBookMenu<CraftingContainer> {
+ 
+     @Override
+     public ItemStack quickMoveStack(Player player, int slot) {
+-        ItemStack itemstack = ItemStack.EMPTY;
++        // Paper start
++        return this.quickMoveStack(player, slot, null);
++    }
++
++    @Override
++    public ItemStack quickMoveStack(final Player player, final int slot, final @org.jetbrains.annotations.Nullable io.papermc.paper.event.inventory.RecipeCraftEvent.ClickCause clickCause) {
++        ItemStack itemstack, result = ItemStack.EMPTY;
++        // Paper end
+         Slot slot1 = (Slot) this.slots.get(slot);
+ 
+         if (slot1 != null && slot1.hasItem()) {
+-            ItemStack itemstack1 = slot1.getItem();
+-
+-            itemstack = itemstack1.copy();
++            // Paper start
++            final ItemStack itemstack1;
++            final org.bukkit.inventory.Recipe recipe = ((org.bukkit.inventory.CraftingInventory) this.getBukkitView().getTopInventory()).getRecipe();
++            if (slot == RESULT_SLOT && recipe != null && clickCause != null) {
++                result = slot1.getItem().copy();
++                final org.bukkit.craftbukkit.inventory.CraftItemStack resultStack = org.bukkit.craftbukkit.inventory.CraftItemStack.asCraftMirror(slot1.getItem());
++                final io.papermc.paper.event.inventory.RecipeCraftEvent event = new io.papermc.paper.event.inventory.RecipeCraftEvent(this.getBukkitView(), recipe, resultStack, clickCause);
++                if (!event.callEvent()) {
++                    return ItemStack.EMPTY;
++                }
++                if (event.getResult() instanceof org.bukkit.craftbukkit.inventory.CraftItemStack craftItemStack && craftItemStack.handle == slot1.getItem()) { // Optimize for no actual changes (fewer copies)
++                    itemstack1 = slot1.getItem();
++                    itemstack = ItemStack.matches(result, itemstack1) ? result : itemstack1.copy();
++                } else {
++                    itemstack1 = org.bukkit.craftbukkit.inventory.CraftItemStack.asNMSCopy(event.getResult());
++                    itemstack = itemstack1.copy();
++                }
++            } else {
++                itemstack1 = slot1.getItem();
++                itemstack = result = itemstack1.copy();
++            }
++            // Paper end
+             if (slot == 0) {
+                 this.access.execute((world, blockposition) -> {
+                     itemstack1.getItem().onCraftedBy(itemstack1, world, player);
+@@ -181,7 +207,7 @@ public class CraftingMenu extends RecipeBookMenu<CraftingContainer> {
+             }
+         }
+ 
+-        return itemstack;
++        return result; // Paper
+     }
+ 
+     @Override
+diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftItemStack.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftItemStack.java
+index f45e4acee69bd95ff2e41feaf44f5414d2e40df0..ff75f000a1a4407b22a883d7c884eb7869dd3d8d 100644
+--- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftItemStack.java
++++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftItemStack.java
+@@ -22,6 +22,16 @@ import org.bukkit.material.MaterialData;
+ @DelegateDeserialization(ItemStack.class)
+ public final class CraftItemStack extends ItemStack {
+ 
++    // Paper start
++    public static net.minecraft.world.item.ItemStack asNMS(CraftItemStack original) {
++        if (original.handle == null) {
++            return net.minecraft.world.item.ItemStack.EMPTY;
++        } else {
++            return original.handle;
++        }
++    }
++    // Paper end
++
+     public static net.minecraft.world.item.ItemStack asNMSCopy(ItemStack original) {
+         if (original instanceof CraftItemStack) {
+             CraftItemStack stack = (CraftItemStack) original;

@@ -1,0 +1,85 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jake Potrebic <jake.m.potrebic@gmail.com>
+Date: Sat, 25 Mar 2023 10:13:59 -0700
+Subject: [PATCH] Add RecipeCraftEvent
+
+
+diff --git a/src/main/java/io/papermc/paper/event/inventory/RecipeCraftEvent.java b/src/main/java/io/papermc/paper/event/inventory/RecipeCraftEvent.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..8bef7fbce7bbf5f368ef20b4307e361b474ce58b
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/event/inventory/RecipeCraftEvent.java
+@@ -0,0 +1,73 @@
++package io.papermc.paper.event.inventory;
++
++import org.bukkit.event.Cancellable;
++import org.bukkit.event.HandlerList;
++import org.bukkit.event.inventory.ClickType;
++import org.bukkit.event.inventory.InventoryEvent;
++import org.bukkit.inventory.InventoryView;
++import org.bukkit.inventory.ItemStack;
++import org.bukkit.inventory.Recipe;
++import org.jetbrains.annotations.ApiStatus;
++import org.jetbrains.annotations.NotNull;
++
++public class RecipeCraftEvent extends InventoryEvent implements Cancellable {
++
++    private static final HandlerList HANDLER_LIST = new HandlerList();
++
++    private final Recipe recipe;
++    private ItemStack result;
++    private boolean cancel;
++    private final ClickCause clickCause;
++
++    @ApiStatus.Internal
++    public RecipeCraftEvent(final @NotNull InventoryView view, final Recipe recipe, final ItemStack result, final ClickCause clickCause) {
++        super(view);
++        this.recipe = recipe;
++        this.result = result;
++        this.clickCause = clickCause;
++    }
++
++    public @NotNull ClickCause getClickCause() {
++        return this.clickCause;
++    }
++
++    public @NotNull Recipe getRecipe() {
++        return this.recipe;
++    }
++
++    public @NotNull ItemStack getResult() {
++        return this.result;
++    }
++
++    public void setResult(final ItemStack result) {
++        this.result = result;
++    }
++
++    @Override
++    public boolean isCancelled() {
++        return this.cancel;
++    }
++
++    @Override
++    public void setCancelled(final boolean cancel) {
++        this.cancel = cancel;
++    }
++
++    @Override
++    public @NotNull HandlerList getHandlers() {
++        return HANDLER_LIST;
++    }
++
++    public static @NotNull HandlerList getHandlerList() {
++        return HANDLER_LIST;
++    }
++
++
++    @ApiStatus.NonExtendable
++    public interface ClickCause {
++
++        ClickType clickType();
++
++        int slot();
++    }
++}
