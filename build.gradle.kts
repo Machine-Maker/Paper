@@ -47,6 +47,11 @@ subprojects {
     }
 
     repositories {
+        mavenLocal {
+            mavenContent {
+                includeModule("io.papermc", "asm-utils")
+            }
+        }
         mavenCentral()
         maven(paperMavenPublicUrl)
     }

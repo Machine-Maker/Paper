@@ -1,0 +1,177 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jake Potrebic <jake.m.potrebic@gmail.com>
+Date: Sun, 12 Nov 2023 16:56:03 -0800
+Subject: [PATCH] Bytecode Modification Framework
+
+replaces Commodore
+
+diff --git a/build.gradle.kts b/build.gradle.kts
+index 648281575eb8d45a5c06549eb3d0f517c086fe64..82eee363a397a6e1943d1fd14f5cb588503288ec 100644
+--- a/build.gradle.kts
++++ b/build.gradle.kts
+@@ -56,10 +56,11 @@ dependencies {
+     implementation("net.neoforged:srgutils:1.0.9") // Paper - mappings handling
+     implementation("net.neoforged:AutoRenamingTool:2.0.3") // Paper - remap plugins
+     // Paper start - Remap reflection
+-    val reflectionRewriterVersion = "0.0.3"
++    val reflectionRewriterVersion = "0.0.4-SNAPSHOT"
+     implementation("io.papermc:reflection-rewriter:$reflectionRewriterVersion")
+     implementation("io.papermc:reflection-rewriter-runtime:$reflectionRewriterVersion")
+     implementation("io.papermc:reflection-rewriter-proxy-generator:$reflectionRewriterVersion")
++    implementation("io.papermc:asm-utils:$reflectionRewriterVersion")
+     // Paper end - Remap reflection
+     // Paper start - spark
+     implementation("me.lucko:spark-api:0.1-20240720.200737-2")
+diff --git a/src/main/java/io/papermc/paper/plugin/entrypoint/classloader/PaperClassloaderBytecodeModifier.java b/src/main/java/io/papermc/paper/plugin/entrypoint/classloader/PaperClassloaderBytecodeModifier.java
+deleted file mode 100644
+index 0e734c07dbe82ba4c319a237f9e79b08b57b997f..0000000000000000000000000000000000000000
+--- a/src/main/java/io/papermc/paper/plugin/entrypoint/classloader/PaperClassloaderBytecodeModifier.java
++++ /dev/null
+@@ -1,12 +0,0 @@
+-package io.papermc.paper.plugin.entrypoint.classloader;
+-
+-import io.papermc.paper.plugin.configuration.PluginMeta;
+-
+-// Stub, implement in future.
+-public class PaperClassloaderBytecodeModifier implements ClassloaderBytecodeModifier {
+-
+-    @Override
+-    public byte[] modify(PluginMeta configuration, byte[] bytecode) {
+-        return io.papermc.paper.pluginremap.reflect.ReflectionRemapper.processClass(bytecode);
+-    }
+-}
+diff --git a/src/main/java/io/papermc/paper/plugin/entrypoint/classloader/bytecode/PaperClassloaderBytecodeModifier.java b/src/main/java/io/papermc/paper/plugin/entrypoint/classloader/bytecode/PaperClassloaderBytecodeModifier.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..c87f5197305c54d9f30c723cb8abfa43b03a2cf5
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/plugin/entrypoint/classloader/bytecode/PaperClassloaderBytecodeModifier.java
+@@ -0,0 +1,86 @@
++package io.papermc.paper.plugin.entrypoint.classloader.bytecode;
++
++import io.papermc.asm.rules.rename.RenameRule;
++import io.papermc.asm.versioned.CachingVersionedRuleFactory;
++import io.papermc.asm.versioned.VersionedRuleFactory;
++import io.papermc.paper.plugin.configuration.PluginMeta;
++import io.papermc.paper.plugin.entrypoint.classloader.ClassloaderBytecodeModifier;
++import java.util.Map;
++import java.util.TreeMap;
++import net.minecraft.world.entity.EntityType;
++import org.bukkit.Art;
++import org.bukkit.DyeColor;
++import org.bukkit.Material;
++import org.bukkit.Particle;
++import org.bukkit.attribute.Attribute;
++import org.bukkit.block.Biome;
++import org.bukkit.craftbukkit.util.ApiVersion;
++import org.bukkit.loot.LootTables;
++
++public class PaperClassloaderBytecodeModifier extends CachingVersionedRuleFactory implements ClassloaderBytecodeModifier {
++
++    private static VersionedRuleFactory renames() {
++
++        return new RenameRule.Versioned(new TreeMap<>(
++            Map.of(
++                ApiVersion.NONE, RenameRule.builder() // <1.13
++                    .editEnum(Art.class, b -> b
++                        .rename("BURNINGSKULL", "BURNING_SKULL")
++                        .rename("DONKEYKONG", "DONKEY_KONG")
++                    )
++                    .editEnum(DyeColor.class, b -> b.rename("SILVER", "LIGHT_GRAY"))
++                    .build(),
++                ApiVersion.getOrCreateVersion("1.13.99"), RenameRule.builder() // <1.14
++                    .editEnum(Material.class, b -> b
++                        .rename("CACTUS_GREEN", "GREEN_DYE")
++                        .rename("DANDELION_YELLOW", "YELLOW_DYE")
++                        .rename("ROSE_RED", "RED_DYE")
++                        .rename("SIGN", "OAK_SIGN")
++                        .rename("WALL_SIGN", "OAK_WALL_SIGN")
++                    )
++                    .build(),
++                ApiVersion.getOrCreateVersion("1.15.99"), RenameRule.builder() // <1.16(.1)
++                    .editEnum(Material.class, b -> b.rename("ZOMBIE_PIGMAN_SPAWN_EGG", "ZOMBIFIED_PIGLIN_SPAWN_EGG"))
++                    .editEnum(Biome.class, b -> b.rename("NETHER", "NETHER_WASTES"))
++                    .editEnum(EntityType.class, b -> b.rename("PIG_ZOMBIE", "ZOMBIFIED_PIGLIN"))
++                    .editEnum(LootTables.class, b -> b.rename("ZOMBIE_PIGMAN", "ZOMBIFIED_PIGLIN"))
++                    .build(),
++                ApiVersion.getOrCreateVersion("1.16.99"), RenameRule.builder() // <1.17
++                    .editEnum(Material.class, b -> b.rename("GRASS_PATH", "DIRT_PATH"))
++                    .build(),
++                ApiVersion.getOrCreateVersion("1.17.99"), RenameRule.builder() // <1.18
++                    .editEnum(Biome.class, b -> b
++                        .rename("TALL_BIRCH_FOREST", "OLD_GROWTH_BIRCH_FOREST")
++                        .rename("GIANT_TREE_TAIGA", "OLD_GROWTH_PINE_TAIGA")
++                        .rename("GIANT_SPRUCE_TAIGA", "OLD_GROWTH_SPRUCE_TAIGA")
++                        .rename("SNOWY_TUNDRA", "SNOWY_PLAINS")
++                        .rename("JUNGLE_EDGE", "SPARSE_JUNGLE")
++                        .rename("STONE_SHORE", "STONY_SHORE")
++                        .rename("MOUNTAINS", "WINDSWEPT_HILLS")
++                        .rename("WOODED_MOUNTAINS", "WINDSWEPT_FOREST")
++                        .rename("GRAVELLY_MOUNTAINS", "WINDSWEPT_GRAVELLY_HILLS")
++                        .rename("SHATTERED_SAVANNA", "WINDSWEPT_SAVANNA")
++                        .rename("WOODED_BADLANDS_PLATEAU", "WOODED_BADLANDS")
++                    )
++                    .build(),
++                ApiVersion.getOrCreateVersion("1.20.2"), RenameRule.builder() // <1.20.3
++                    .editEnum(Material.class, b -> b.rename("GRASS", "SHORT_GRASS"))
++                    .build(),
++                ApiVersion.getOrCreateVersion("1.20.4"), RenameRule.builder() // <1.20.5
++                    .editEnum(Attribute.class, b -> b.rename("HORSE_JUMP_STRENGTH", "GENERIC_JUMP_STRENGTH"))
++                    // field name parity
++                    .build()
++            )
++        ));
++    }
++
++    @Override
++    public VersionedRuleFactory createRootFactory() {
++        return null;
++    }
++
++    @Override
++    public byte[] modify(final PluginMeta configuration, byte[] bytecode) {
++        return bytecode;
++    }
++}
+diff --git a/src/main/java/io/papermc/paper/plugin/entrypoint/classloader/bytecode/package-info.java b/src/main/java/io/papermc/paper/plugin/entrypoint/classloader/bytecode/package-info.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..f63c305dff1e754cdaea4f0f8055ed850eab6d5a
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/plugin/entrypoint/classloader/bytecode/package-info.java
+@@ -0,0 +1,5 @@
++@DefaultQualifier(NonNull.class)
++package io.papermc.paper.plugin.entrypoint.classloader.bytecode;
++
++import org.checkerframework.checker.nullness.qual.NonNull;
++import org.checkerframework.framework.qual.DefaultQualifier;
+diff --git a/src/main/java/org/bukkit/craftbukkit/util/ApiVersion.java b/src/main/java/org/bukkit/craftbukkit/util/ApiVersion.java
+index 4ffcdcbdff1f43eaa37cb2e8fb5507455bfbdd8c..a93062f8a712539a027d5dd9336830ca2725f8cb 100644
+--- a/src/main/java/org/bukkit/craftbukkit/util/ApiVersion.java
++++ b/src/main/java/org/bukkit/craftbukkit/util/ApiVersion.java
+@@ -5,7 +5,7 @@ import java.util.HashMap;
+ import java.util.Map;
+ import org.jetbrains.annotations.NotNull;
+ 
+-public final class ApiVersion implements Comparable<ApiVersion>, Serializable {
++public final class ApiVersion implements Comparable<ApiVersion>, Serializable, io.papermc.asm.versioned.ApiVersion<ApiVersion> { // Paper - implement asm's ApiVersion
+ 
+     public static final ApiVersion CURRENT;
+     public static final ApiVersion FLATTENING;
+diff --git a/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java b/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
+index f78744b6d6075f584d9a88612661854f3f04aed1..1d62757431c39b99d168780dd908334fb0230f60 100644
+--- a/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
++++ b/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
+@@ -397,6 +397,7 @@ public final class CraftMagicNumbers implements UnsafeValues {
+         // Paper end
+         try {
+             clazz = Commodore.convert(clazz, pdf.getName(), ApiVersion.getOrCreateVersion(pdf.getAPIVersion()), ((CraftServer) Bukkit.getServer()).activeCompatibilities);
++            clazz = io.papermc.paper.plugin.entrypoint.classloader.ClassloaderBytecodeModifier.bytecodeModifier().modify(pdf, clazz); // Paper - run plugins through our modifications as well
+         } catch (Exception ex) {
+             Bukkit.getLogger().log(Level.SEVERE, "Fatal error trying to convert " + pdf.getFullName() + ":" + path, ex);
+         }
+diff --git a/src/main/resources/META-INF/services/io.papermc.paper.plugin.entrypoint.classloader.ClassloaderBytecodeModifier b/src/main/resources/META-INF/services/io.papermc.paper.plugin.entrypoint.classloader.ClassloaderBytecodeModifier
+index 20dbe2775951bfcdb85c5d679ac86c77a93e0847..4a554839971953e6f2b19e674d68afb727a39adf 100644
+--- a/src/main/resources/META-INF/services/io.papermc.paper.plugin.entrypoint.classloader.ClassloaderBytecodeModifier
++++ b/src/main/resources/META-INF/services/io.papermc.paper.plugin.entrypoint.classloader.ClassloaderBytecodeModifier
+@@ -1 +1 @@
+-io.papermc.paper.plugin.entrypoint.classloader.PaperClassloaderBytecodeModifier
++io.papermc.paper.plugin.entrypoint.classloader.bytecode.PaperClassloaderBytecodeModifier
