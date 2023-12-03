@@ -1,0 +1,42 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jake Potrebic <jake.m.potrebic@gmail.com>
+Date: Sun, 3 Dec 2023 10:02:25 -0800
+Subject: [PATCH] demo PredicateChoice
+
+
+diff --git a/src/main/java/org/bukkit/inventory/RecipeChoice.java b/src/main/java/org/bukkit/inventory/RecipeChoice.java
+index 523818cbb0d6c90481ec97123e7fe0e2ff4eea14..26b9c93f2cf5bb49d117b346b6b542a344c75aca 100644
+--- a/src/main/java/org/bukkit/inventory/RecipeChoice.java
++++ b/src/main/java/org/bukkit/inventory/RecipeChoice.java
+@@ -233,4 +233,31 @@ public interface RecipeChoice extends Predicate<ItemStack>, Cloneable {
+             return "ExactChoice{" + "choices=" + choices + '}';
+         }
+     }
++
++    class PredicateChoice implements RecipeChoice {
++
++        private final Predicate<? super ItemStack> stackPredicate;
++        private final ItemStack exampleStack;
++
++        public PredicateChoice(final Predicate<? super ItemStack> stackPredicate, final ItemStack exampleStack) {
++            this.stackPredicate = stackPredicate;
++            this.exampleStack = exampleStack;
++        }
++
++        @Override
++        public @NotNull ItemStack getItemStack() {
++            return this.exampleStack;
++        }
++
++        @Override
++        public @NotNull RecipeChoice clone() {
++            //noinspection FunctionalExpressionCanBeFolded (create new instance since it's a clone)
++            return new PredicateChoice(this.stackPredicate::test, this.exampleStack.clone());
++        }
++
++        @Override
++        public boolean test(final @NotNull ItemStack itemStack) {
++            return this.stackPredicate.test(itemStack);
++        }
++    }
+ }
