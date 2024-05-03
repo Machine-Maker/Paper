@@ -1,0 +1,462 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jake Potrebic <jake.m.potrebic@gmail.com>
+Date: Fri, 3 May 2024 11:38:31 -0700
+Subject: [PATCH] wip render BlockEntity with player Locale
+
+
+diff --git a/src/main/java/io/papermc/paper/util/dfu/ContextProviderOps.java b/src/main/java/io/papermc/paper/util/dfu/ContextProviderOps.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..84d65d51ee7edf6d6ab84526738f2ba72d7e37bf
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/util/dfu/ContextProviderOps.java
+@@ -0,0 +1,123 @@
++package io.papermc.paper.util.dfu;
++
++import com.mojang.serialization.DynamicOps;
++import java.util.HashMap;
++import java.util.Locale;
++import java.util.Map;
++import java.util.Optional;
++import java.util.function.Consumer;
++import java.util.stream.Stream;
++import net.minecraft.core.HolderLookup;
++import net.minecraft.nbt.Tag;
++import net.minecraft.network.RegistryFriendlyByteBuf;
++import net.minecraft.resources.DelegatingOps;
++import net.minecraft.resources.RegistryOps;
++import net.minecraft.resources.ResourceKey;
++import org.checkerframework.checker.nullness.qual.NonNull;
++import org.checkerframework.checker.nullness.qual.Nullable;
++import org.checkerframework.framework.qual.DefaultQualifier;
++
++@DefaultQualifier(NonNull.class)
++public interface ContextProviderOps {
++
++    Key<Locale> LOCALE = new Key<>();
++
++    static <T> @Nullable T get(final DynamicOps<?> ops, final Key<T> key) {
++        if (!(ops instanceof final ContextProviderOps contextOps)) {
++            return null;
++        }
++        return contextOps.get(key);
++    }
++
++    static HolderLookup.Provider wrapProvider(final HolderLookup.Provider provider, final Consumer<Builder<?>> builderConsumer) {
++        return new HolderLookup.Provider() {
++            @Override
++            public <V> RegistryOps<V> createSerializationContext(final DynamicOps<V> delegate) {
++                final RegistryOps<V> ops = HolderLookup.Provider.super.createSerializationContext(delegate);
++                final Builder<V> builder = builder(ops);
++                builderConsumer.accept(builder);
++                return (RegistryOps<V>) builder.build();
++            }
++
++            @Override
++            public Stream<ResourceKey<? extends net.minecraft.core.Registry<?>>> listRegistries() {
++                return provider.listRegistries();
++            }
++
++            @Override
++            public <T> Optional<HolderLookup.RegistryLookup<T>> lookup(final ResourceKey<? extends net.minecraft.core.Registry<? extends T>> registryRef) {
++                return provider.lookup(registryRef);
++            }
++        };
++    }
++
++    Map<Key<?>, Object> context();
++
++    @SuppressWarnings("unchecked")
++    default <V> @Nullable V get(final Key<V> key) {
++        return (V) this.context().get(key);
++    }
++
++    static <T> Builder<T> builder(final DynamicOps<T> delegate) {
++        return new Builder<>(delegate);
++    }
++
++    final class Delegating<T> extends DelegatingOps<T> implements ContextProviderOps {
++
++        private final Map<Key<?>, Object> context;
++
++        private Delegating(final DynamicOps<T> delegate, final Map<Key<?>, Object> context) {
++            super(delegate);
++            this.context = Map.copyOf(context);
++        }
++
++        @Override
++        public Map<Key<?>, Object> context() {
++            return this.context;
++        }
++    }
++
++    final class Registry<T> extends RegistryOps<T> implements ContextProviderOps {
++
++        private final Map<Key<?>, Object> context;
++
++        private Registry(final RegistryOps<T> registryOps, final Map<Key<?>, Object> context) {
++            super(registryOps, registryOps.lookupProvider);
++            this.context = Map.copyOf(context);
++        }
++
++        @Override
++        public Map<Key<?>, Object> context() {
++            return this.context;
++        }
++    }
++
++    final class Builder<T> {
++        private final DynamicOps<T> delegate;
++        private final Map<Key<?>, Object> context = new HashMap<>();
++
++        public Builder(final DynamicOps<T> delegate) {
++            this.delegate = delegate;
++        }
++
++        public <V> Builder<T> with(final Key<V> key, final V value) {
++            this.context.put(key, value);
++            return this;
++        }
++
++        public DynamicOps<T> build() {
++            if (this.delegate instanceof final RegistryOps<T> registryOps) {
++                return new Registry<>(registryOps, this.context);
++            }
++            return new Delegating<>(this.delegate, this.context);
++        }
++    }
++
++    io.papermc.paper.util.dfu.ContextProviderOps.RegistryWrapper IDENTITY = (buf, ops) -> ops;
++
++    interface RegistryWrapper {
++        RegistryOps<Tag> wrap(RegistryFriendlyByteBuf byteBuf, RegistryOps<Tag> ops);
++    }
++
++    record Key<T>() {}
++}
+diff --git a/src/main/java/net/minecraft/network/FriendlyByteBuf.java b/src/main/java/net/minecraft/network/FriendlyByteBuf.java
+index aafeb9c61ddba6a8671f0238eda47b227619f1af..ebdfb9713f919478a0722fa4929fa97119fc0a63 100644
+--- a/src/main/java/net/minecraft/network/FriendlyByteBuf.java
++++ b/src/main/java/net/minecraft/network/FriendlyByteBuf.java
+@@ -122,12 +122,12 @@ public class FriendlyByteBuf extends ByteBuf {
+     }
+ 
+     public <T> void writeJsonWithCodec(Codec<T> codec, T value) {
+-        // Paper start - Adventure; add max length parameter
+-        this.writeJsonWithCodec(codec, value, MAX_STRING_LENGTH);
++        // Paper start - Adventure; add max length parameter & custom ops
++        this.writeJsonWithCodec(codec, value, MAX_STRING_LENGTH, JsonOps.INSTANCE);
+     }
+-    public <T> void writeJsonWithCodec(Codec<T> codec, T value, int maxLength) {
+-        // Paper end - Adventure; add max length parameter
+-        DataResult<JsonElement> dataresult = codec.encodeStart(JsonOps.INSTANCE, value);
++    public <T> void writeJsonWithCodec(Codec<T> codec, T value, int maxLength, DynamicOps<JsonElement> jsonOps) {
++        DataResult<JsonElement> dataresult = codec.encodeStart(jsonOps, value);
++        // Paper end - Adventure; add max length parameter & custom ops
+ 
+         this.writeUtf(FriendlyByteBuf.GSON.toJson((JsonElement) dataresult.getOrThrow((s) -> {
+             return new EncoderException("Failed to encode: " + s + " " + String.valueOf(value));
+diff --git a/src/main/java/net/minecraft/network/chat/ComponentSerialization.java b/src/main/java/net/minecraft/network/chat/ComponentSerialization.java
+index 22c6a324dedeb315eac2d3d3f55d2f3a9eebb0ad..42f058fbecc25e70b5f428b8c966f1e3ef15c24b 100644
+--- a/src/main/java/net/minecraft/network/chat/ComponentSerialization.java
++++ b/src/main/java/net/minecraft/network/chat/ComponentSerialization.java
+@@ -36,32 +36,19 @@ import net.minecraft.util.GsonHelper;
+ import net.minecraft.util.StringRepresentable;
+ 
+ public class ComponentSerialization {
+-    public static final Codec<Component> CODEC = Codec.recursive("Component", ComponentSerialization::createCodec);
+-    public static final StreamCodec<RegistryFriendlyByteBuf, Component> STREAM_CODEC = createTranslationAware(() -> net.minecraft.nbt.NbtAccounter.create(net.minecraft.network.FriendlyByteBuf.DEFAULT_NBT_QUOTA)); // Paper - adventure
+-    public static final StreamCodec<RegistryFriendlyByteBuf, Optional<Component>> OPTIONAL_STREAM_CODEC = STREAM_CODEC.apply(ByteBufCodecs::optional);
+     // Paper start - adventure; use locale from bytebuf for translation
+     public static final ThreadLocal<Boolean> DONT_RENDER_TRANSLATABLES = ThreadLocal.withInitial(() -> false);
+-    public static final StreamCodec<RegistryFriendlyByteBuf, Component> TRUSTED_STREAM_CODEC = createTranslationAware(net.minecraft.nbt.NbtAccounter::unlimitedHeap);
+-    private static StreamCodec<RegistryFriendlyByteBuf, Component> createTranslationAware(final Supplier<net.minecraft.nbt.NbtAccounter> sizeTracker) {
+-        return new StreamCodec<>() {
+-            final StreamCodec<ByteBuf, net.minecraft.nbt.Tag> streamCodec = ByteBufCodecs.tagCodec(sizeTracker);
+-            @Override
+-            public Component decode(RegistryFriendlyByteBuf registryFriendlyByteBuf) {
+-                net.minecraft.nbt.Tag tag = this.streamCodec.decode(registryFriendlyByteBuf);
+-                RegistryOps<net.minecraft.nbt.Tag> registryOps = registryFriendlyByteBuf.registryAccess().createSerializationContext(net.minecraft.nbt.NbtOps.INSTANCE);
+-                return CODEC.parse(registryOps, tag).getOrThrow(error -> new io.netty.handler.codec.DecoderException("Failed to decode: " + error + " " + tag));
+-            }
+-
+-            @Override
+-            public void encode(RegistryFriendlyByteBuf registryFriendlyByteBuf, Component object) {
+-                RegistryOps<net.minecraft.nbt.Tag> registryOps = registryFriendlyByteBuf.registryAccess().createSerializationContext(net.minecraft.nbt.NbtOps.INSTANCE);
+-                net.minecraft.nbt.Tag tag = (DONT_RENDER_TRANSLATABLES.get() ? CODEC : ComponentSerialization.localizedCodec(registryFriendlyByteBuf.adventure$locale))
+-                    .encodeStart(registryOps, object).getOrThrow(error -> new io.netty.handler.codec.EncoderException("Failed to encode: " + error + " " + object));
+-                this.streamCodec.encode(registryFriendlyByteBuf, tag);
+-            }
+-        };
+-    }
++    private static final io.papermc.paper.util.dfu.ContextProviderOps.RegistryWrapper WRAPPER = (byteBuf, ops) -> {
++        if (DONT_RENDER_TRANSLATABLES.get() || byteBuf.adventure$locale == null) {
++            return ops;
++        }
++        return (RegistryOps<net.minecraft.nbt.Tag>) io.papermc.paper.util.dfu.ContextProviderOps.builder(ops).with(io.papermc.paper.util.dfu.ContextProviderOps.LOCALE, byteBuf.adventure$locale).build();
++    };
+     // Paper end - adventure; use locale from bytebuf for translation
++    public static final Codec<Component> CODEC = Codec.recursive("Component", ComponentSerialization::createCodec);
++    public static final StreamCodec<RegistryFriendlyByteBuf, Component> STREAM_CODEC = ByteBufCodecs.fromCodecWithRegistries(CODEC, () -> net.minecraft.nbt.NbtAccounter.create(net.minecraft.network.FriendlyByteBuf.DEFAULT_NBT_QUOTA), WRAPPER); // Paper - adventure; inject locale
++    public static final StreamCodec<RegistryFriendlyByteBuf, Optional<Component>> OPTIONAL_STREAM_CODEC = STREAM_CODEC.apply(ByteBufCodecs::optional);
++    public static final StreamCodec<RegistryFriendlyByteBuf, Component> TRUSTED_STREAM_CODEC = ByteBufCodecs.fromCodecWithRegistries(CODEC, net.minecraft.nbt.NbtAccounter::unlimitedHeap, WRAPPER); // Paper - adventure; inject locale
+     public static final StreamCodec<RegistryFriendlyByteBuf, Optional<Component>> TRUSTED_OPTIONAL_STREAM_CODEC = TRUSTED_STREAM_CODEC.apply(
+         ByteBufCodecs::optional
+     );
+@@ -122,27 +109,7 @@ public class ComponentSerialization {
+         return ExtraCodecs.orCompressed(mapCodec3, mapCodec2);
+     }
+ 
+-    // Paper start - adventure; create separate codec for each locale
+-    private static final java.util.Map<java.util.Locale, Codec<Component>> LOCALIZED_CODECS = new java.util.concurrent.ConcurrentHashMap<>();
+-
+-    public static Codec<Component> localizedCodec(final java.util.@org.checkerframework.checker.nullness.qual.Nullable Locale locale) {
+-        if (locale == null) {
+-            return CODEC;
+-        }
+-        return LOCALIZED_CODECS.computeIfAbsent(locale,
+-            loc -> Codec.recursive("Component", selfCodec -> createCodec(selfCodec, loc)));
+-    }
+-
+-
+-    // Paper end - adventure; create separate codec for each locale
+-
+     private static Codec<Component> createCodec(Codec<Component> selfCodec) {
+-        // Paper start - adventure; create separate codec for each locale
+-        return createCodec(selfCodec, null);
+-    }
+-
+-    private static Codec<Component> createCodec(Codec<Component> selfCodec, @javax.annotation.Nullable java.util.Locale locale) {
+-        // Paper end - adventure; create separate codec for each locale
+         ComponentContents.Type<?>[] types = new ComponentContents.Type[]{
+             PlainTextContents.TYPE, TranslatableContents.TYPE, KeybindContents.TYPE, ScoreContents.TYPE, SelectorContents.TYPE, NbtContents.TYPE
+         };
+@@ -165,6 +132,7 @@ public class ComponentSerialization {
+ 
+             @Override
+             public <T> DataResult<T> encode(final Component input, final DynamicOps<T> ops, final T prefix) {
++                final java.util.Locale locale = io.papermc.paper.util.dfu.ContextProviderOps.get(ops, io.papermc.paper.util.dfu.ContextProviderOps.LOCALE);
+                 final net.kyori.adventure.text.Component adventureComponent;
+                 if (input instanceof io.papermc.paper.adventure.AdventureComponent adv) {
+                     adventureComponent = adv.adventure$component();
+diff --git a/src/main/java/net/minecraft/network/codec/ByteBufCodecs.java b/src/main/java/net/minecraft/network/codec/ByteBufCodecs.java
+index 263e09a9aee4e219ec33c78bf729480b4b22e2c2..2d304a7a1d85c4ec84d7b21ee213ddf5f4cf2428 100644
+--- a/src/main/java/net/minecraft/network/codec/ByteBufCodecs.java
++++ b/src/main/java/net/minecraft/network/codec/ByteBufCodecs.java
+@@ -331,18 +331,25 @@ public interface ByteBufCodecs {
+     }
+ 
+     static <T> StreamCodec<RegistryFriendlyByteBuf, T> fromCodecWithRegistries(Codec<T> codec, Supplier<NbtAccounter> sizeTracker) {
++        // Paper start - add optional RegistryOps wrapper
++        return fromCodecWithRegistries(codec, sizeTracker, io.papermc.paper.util.dfu.ContextProviderOps.IDENTITY);
++    }
++    static <T> StreamCodec<RegistryFriendlyByteBuf, T> fromCodecWithRegistries(Codec<T> codec, Supplier<NbtAccounter> sizeTracker, io.papermc.paper.util.dfu.ContextProviderOps.RegistryWrapper wrapper) {
++        // Paper end - add optional RegistryOps wrapper
+         final StreamCodec<ByteBuf, Tag> streamCodec = tagCodec(sizeTracker);
+         return new StreamCodec<RegistryFriendlyByteBuf, T>() {
+             @Override
+             public T decode(RegistryFriendlyByteBuf registryFriendlyByteBuf) {
+                 Tag tag = streamCodec.decode(registryFriendlyByteBuf);
+                 RegistryOps<Tag> registryOps = registryFriendlyByteBuf.registryAccess().createSerializationContext(NbtOps.INSTANCE);
++                registryOps = wrapper.wrap(registryFriendlyByteBuf, registryOps); // Paper - wrap
+                 return codec.parse(registryOps, tag).getOrThrow(error -> new DecoderException("Failed to decode: " + error + " " + tag));
+             }
+ 
+             @Override
+             public void encode(RegistryFriendlyByteBuf registryFriendlyByteBuf, T object) {
+                 RegistryOps<Tag> registryOps = registryFriendlyByteBuf.registryAccess().createSerializationContext(NbtOps.INSTANCE);
++                registryOps = wrapper.wrap(registryFriendlyByteBuf, registryOps); // Paper - wrap
+                 Tag tag = codec.encodeStart(registryOps, object).getOrThrow(error -> new EncoderException("Failed to encode: " + error + " " + object));
+                 streamCodec.encode(registryFriendlyByteBuf, tag);
+             }
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundBlockEntityDataPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundBlockEntityDataPacket.java
+index 5d3e739d28d394ed59fe0003245cc55ac62e6087..219986db79954b58bc4cf72e53980e9ad92ab6c0 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundBlockEntityDataPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundBlockEntityDataPacket.java
+@@ -27,8 +27,14 @@ public class ClientboundBlockEntityDataPacket implements Packet<ClientGamePacket
+     private final BlockEntityType<?> type;
+     private final CompoundTag tag;
+ 
+-    public static ClientboundBlockEntityDataPacket create(BlockEntity blockEntity, BiFunction<BlockEntity, RegistryAccess, CompoundTag> nbtGetter) {
+-        RegistryAccess registryAccess = blockEntity.getLevel().registryAccess();
++    // Paper start - adventure; support rendering block entities with specific locales
++    public static final ThreadLocal<java.util.Locale> BLOCK_ENTITY_LOCALE = ThreadLocal.withInitial(() -> null);
++    public static ClientboundBlockEntityDataPacket create(BlockEntity blockEntity, BiFunction<BlockEntity, net.minecraft.core.HolderLookup.Provider, CompoundTag> nbtGetter) { // Paper - use HolderLookup$Provider
++        net.minecraft.core.HolderLookup.Provider registryAccess = blockEntity.getLevel().registryAccess();
++        if (BLOCK_ENTITY_LOCALE.get() != null) {
++            registryAccess = io.papermc.paper.util.dfu.ContextProviderOps.wrapProvider(registryAccess, b -> b.with(io.papermc.paper.util.dfu.ContextProviderOps.LOCALE, BLOCK_ENTITY_LOCALE.get()));
++        }
++        // Paper end
+         return new ClientboundBlockEntityDataPacket(blockEntity.getBlockPos(), blockEntity.getType(), blockEntity.sanitizeSentNbt(nbtGetter.apply(blockEntity, registryAccess)));  // Paper - Sanitize sent data
+     }
+ 
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundLevelChunkPacketData.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundLevelChunkPacketData.java
+index 0a8d07bf68b0ceabd13c70196d357fce79dcc2c3..a9fd67ad9b686c6c82dc81ce2fc4e092226f2ab3 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundLevelChunkPacketData.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundLevelChunkPacketData.java
+@@ -37,8 +37,8 @@ public class ClientboundLevelChunkPacketData {
+     // Paper end - Handle oversized block entities in chunks
+ 
+     // Paper start - Anti-Xray - Add chunk packet info
+-    @Deprecated @io.papermc.paper.annotation.DoNotUse public ClientboundLevelChunkPacketData(LevelChunk chunk) { this(chunk, null); }
+-    public ClientboundLevelChunkPacketData(LevelChunk chunk, com.destroystokyo.paper.antixray.ChunkPacketInfo<net.minecraft.world.level.block.state.BlockState> chunkPacketInfo) {
++    @Deprecated @io.papermc.paper.annotation.DoNotUse public ClientboundLevelChunkPacketData(LevelChunk chunk) { this(chunk, null, null); }
++    public ClientboundLevelChunkPacketData(LevelChunk chunk, com.destroystokyo.paper.antixray.ChunkPacketInfo<net.minecraft.world.level.block.state.BlockState> chunkPacketInfo, @Nullable java.util.Locale locale) {
+         // Paper end
+         this.heightmaps = new CompoundTag();
+ 
+@@ -70,7 +70,7 @@ public class ClientboundLevelChunkPacketData {
+                 }
+             }
+             // Paper end - Handle oversized block entities in chunks
+-            this.blockEntitiesData.add(ClientboundLevelChunkPacketData.BlockEntityInfo.create(entry2.getValue()));
++            this.blockEntitiesData.add(ClientboundLevelChunkPacketData.BlockEntityInfo.create(entry2.getValue(), locale)); // Paper - pass locale for rendering translatables in block entities
+         }
+     }
+ 
+@@ -184,8 +184,14 @@ public class ClientboundLevelChunkPacketData {
+             buf.writeNbt(this.tag);
+         }
+ 
+-        static ClientboundLevelChunkPacketData.BlockEntityInfo create(BlockEntity blockEntity) {
+-            CompoundTag compoundTag = blockEntity.getUpdateTag(blockEntity.getLevel().registryAccess());
++        // Paper start - render translatables
++        static ClientboundLevelChunkPacketData.BlockEntityInfo create(BlockEntity blockEntity, @Nullable java.util.Locale locale) {
++            net.minecraft.core.HolderLookup.Provider provider = blockEntity.getLevel().registryAccess();
++            if (locale != null) {
++                provider = io.papermc.paper.util.dfu.ContextProviderOps.wrapProvider(provider, b -> b.with(io.papermc.paper.util.dfu.ContextProviderOps.LOCALE, locale));
++            }
++            CompoundTag compoundTag = blockEntity.getUpdateTag(provider);
++            // Paper end - adventure; render translatables
+             BlockPos blockPos = blockEntity.getBlockPos();
+             int i = SectionPos.sectionRelative(blockPos.getX()) << 4 | SectionPos.sectionRelative(blockPos.getZ());
+             blockEntity.sanitizeSentNbt(compoundTag); // Paper - Sanitize sent data
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundLevelChunkWithLightPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundLevelChunkWithLightPacket.java
+index cfcac0fdc130120cb1f8d97c6353d93db7ddf81b..40d00e2e0968efebce4f29e973fb6dbb9197bd94 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundLevelChunkWithLightPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundLevelChunkWithLightPacket.java
+@@ -32,13 +32,13 @@ public class ClientboundLevelChunkWithLightPacket implements Packet<ClientGamePa
+     // Paper end
+ 
+     // Paper start - Anti-Xray - Add chunk packet info
+-    @Deprecated @io.papermc.paper.annotation.DoNotUse public ClientboundLevelChunkWithLightPacket(LevelChunk chunk, LevelLightEngine lightProvider, @Nullable BitSet skyBits, @Nullable BitSet blockBits) { this(chunk, lightProvider, skyBits, blockBits, true); }
+-    public ClientboundLevelChunkWithLightPacket(LevelChunk chunk, LevelLightEngine lightProvider, @Nullable BitSet skyBits, @Nullable BitSet blockBits, boolean modifyBlocks) {
++    @Deprecated @io.papermc.paper.annotation.DoNotUse public ClientboundLevelChunkWithLightPacket(LevelChunk chunk, LevelLightEngine lightProvider, @Nullable BitSet skyBits, @Nullable BitSet blockBits) { this(chunk, lightProvider, skyBits, blockBits, true, null); }
++    public ClientboundLevelChunkWithLightPacket(LevelChunk chunk, LevelLightEngine lightProvider, @Nullable BitSet skyBits, @Nullable BitSet blockBits, boolean modifyBlocks, @Nullable java.util.Locale locale) {
+         ChunkPos chunkPos = chunk.getPos();
+         this.x = chunkPos.x;
+         this.z = chunkPos.z;
+         com.destroystokyo.paper.antixray.ChunkPacketInfo<net.minecraft.world.level.block.state.BlockState> chunkPacketInfo = modifyBlocks ? chunk.getLevel().chunkPacketBlockController.getChunkPacketInfo(this, chunk) : null;
+-        this.chunkData = new ClientboundLevelChunkPacketData(chunk, chunkPacketInfo);
++        this.chunkData = new ClientboundLevelChunkPacketData(chunk, chunkPacketInfo, locale); // Paper - adventure; pass Locale for rendering components in block entities
+         // Paper end
+         this.lightData = new ClientboundLightUpdatePacketData(chunkPos, lightProvider, skyBits, blockBits);
+         chunk.getLevel().chunkPacketBlockController.modifyBlocks(this, chunkPacketInfo); // Paper - Anti-Xray - Modify blocks
+diff --git a/src/main/java/net/minecraft/network/protocol/login/ClientboundLoginDisconnectPacket.java b/src/main/java/net/minecraft/network/protocol/login/ClientboundLoginDisconnectPacket.java
+index 5d1758086ed4fce5b36a5b31df44ccea42abc590..7f2d36ef95583a4adb6c4f887ca6a8c5ba597270 100644
+--- a/src/main/java/net/minecraft/network/protocol/login/ClientboundLoginDisconnectPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/login/ClientboundLoginDisconnectPacket.java
+@@ -25,7 +25,8 @@ public class ClientboundLoginDisconnectPacket implements Packet<ClientLoginPacke
+         // Paper start - Adventure
+         // buf.writeUtf(Component.Serializer.toJson(this.reason, RegistryAccess.EMPTY));
+         // In the login phase, buf.adventure$locale field is always null
+-        buf.writeJsonWithCodec(net.minecraft.network.chat.ComponentSerialization.localizedCodec(java.util.Locale.US), this.reason, FriendlyByteBuf.MAX_COMPONENT_STRING_LENGTH);
++        final com.mojang.serialization.DynamicOps<com.google.gson.JsonElement> jsonOps = io.papermc.paper.util.dfu.ContextProviderOps.builder(com.mojang.serialization.JsonOps.INSTANCE).with(io.papermc.paper.util.dfu.ContextProviderOps.LOCALE, java.util.Locale.US).build();
++        buf.writeJsonWithCodec(net.minecraft.network.chat.ComponentSerialization.CODEC, this.reason, FriendlyByteBuf.MAX_COMPONENT_STRING_LENGTH, jsonOps);
+         // Paper end - Adventure
+     }
+ 
+diff --git a/src/main/java/net/minecraft/server/level/ServerPlayerGameMode.java b/src/main/java/net/minecraft/server/level/ServerPlayerGameMode.java
+index 5cedce1f432f6b809b25269242a16477682c824f..8ab8e018f2d706b37c6ae0acffd5eea24c30930f 100644
+--- a/src/main/java/net/minecraft/server/level/ServerPlayerGameMode.java
++++ b/src/main/java/net/minecraft/server/level/ServerPlayerGameMode.java
+@@ -395,7 +395,13 @@ public class ServerPlayerGameMode {
+                 if (!captureSentBlockEntities) { // Paper - Send block entities after destroy prediction
+                 BlockEntity tileentity = this.level.getBlockEntity(pos);
+                 if (tileentity != null) {
++                    // Paper start - adventure
++                    try { net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket.BLOCK_ENTITY_LOCALE.set(this.player.adventure$locale);
+                     this.player.connection.send(tileentity.getUpdatePacket());
++                    } finally {
++                        net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket.BLOCK_ENTITY_LOCALE.remove();
++                    }
++                    // Paper end
+                 }
+                 } else {capturedBlockEntity = true;} // Paper - Send block entities after destroy prediction
+                 return false;
+diff --git a/src/main/java/net/minecraft/server/network/PlayerChunkSender.java b/src/main/java/net/minecraft/server/network/PlayerChunkSender.java
+index 442bb60eb35002e54dcd6a893aca4a4584a8e017..368126c329c94af4f6a0f3b731f60aac750ff7b2 100644
+--- a/src/main/java/net/minecraft/server/network/PlayerChunkSender.java
++++ b/src/main/java/net/minecraft/server/network/PlayerChunkSender.java
+@@ -89,7 +89,7 @@ public class PlayerChunkSender {
+         handler.player.serverLevel().chunkSource.chunkMap.getVisibleChunkIfPresent(chunk.getPos().toLong()).addPlayer(handler.player);
+         // Paper start - Anti-Xray
+         final boolean shouldModify = world.chunkPacketBlockController.shouldModify(handler.player, chunk);
+-        handler.send(new ClientboundLevelChunkWithLightPacket(chunk, world.getLightEngine(), null, null, shouldModify));
++        handler.send(new ClientboundLevelChunkWithLightPacket(chunk, world.getLightEngine(), null, null, shouldModify, handler.player.adventure$locale)); // Paper - adventure; pass Locale for rendering components in block entities
+         // Paper end - Anti-Xray
+         // Paper start - PlayerChunkLoadEvent
+         if (io.papermc.paper.event.packet.PlayerChunkLoadEvent.getHandlerList().getRegisteredListeners().length > 0) {
+diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 8e67853a7a93fa736c147e8b2df537746dc8e94f..aea4dd8461d4d064eab0acdcff69a68f8decd069 100644
+--- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -1856,7 +1856,13 @@ public class ServerGamePacketListenerImpl extends ServerCommonPacketListenerImpl
+                     this.player.gameMode.capturedBlockEntity = false;
+                     BlockEntity tileentity = this.player.level().getBlockEntity(blockposition);
+                     if (tileentity != null) {
++                        // Paper start - adventure
++                        try { net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket.BLOCK_ENTITY_LOCALE.set(this.player.adventure$locale);
+                         this.player.connection.send(tileentity.getUpdatePacket());
++                        } finally {
++                            net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket.BLOCK_ENTITY_LOCALE.remove();
++                        }
++                        // Paper end
+                     }
+                 }
+                 // Paper end - Send block entities after destroy prediction
+diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
+index a2142930b4d4b05987c90496fb9d733d99040aa0..ba9d56acddb4bacea64182445a100c9257065d6d 100644
+--- a/src/main/java/net/minecraft/server/players/PlayerList.java
++++ b/src/main/java/net/minecraft/server/players/PlayerList.java
+@@ -420,7 +420,7 @@ public abstract class PlayerList {
+                 .getHolderOrThrow(net.minecraft.world.level.biome.Biomes.PLAINS);
+             player.connection.send(new net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket(
+                 new net.minecraft.world.level.chunk.EmptyLevelChunk(worldserver1, player.chunkPosition(), plains),
+-                worldserver1.getLightEngine(), (java.util.BitSet)null, (java.util.BitSet) null, true)
++                worldserver1.getLightEngine(), (java.util.BitSet)null, (java.util.BitSet) null, true, player.adventure$locale) // Paper - adventure; pass Locale for rendering components in block entities
+             );
+         }
+         // Paper end - Send empty chunk
+diff --git a/src/main/java/net/minecraft/world/level/block/entity/SignBlockEntity.java b/src/main/java/net/minecraft/world/level/block/entity/SignBlockEntity.java
+index a28be7a332659be655f419d969e0c64e659b6c21..3649b2e50c42f5e3ca3faec0af36cf9c33669c86 100644
+--- a/src/main/java/net/minecraft/world/level/block/entity/SignBlockEntity.java
++++ b/src/main/java/net/minecraft/world/level/block/entity/SignBlockEntity.java
+@@ -191,7 +191,14 @@ public class SignBlockEntity extends BlockEntity implements CommandSource { // C
+         } else {
+             SignBlockEntity.LOGGER.warn("Player {} just tried to change non-editable sign", player.getName().getString());
+             if (player.distanceToSqr(this.getBlockPos().getX(), this.getBlockPos().getY(), this.getBlockPos().getZ()) < 32 * 32) // Paper - Dont send far away sign update
+-            ((ServerPlayer) player).connection.send(this.getUpdatePacket()); // CraftBukkit
++                // Paper start - adventure;
++                try {
++                    ClientboundBlockEntityDataPacket.BLOCK_ENTITY_LOCALE.set(((net.minecraft.server.level.ServerPlayer) player).adventure$locale);
++                    ((ServerPlayer) player).connection.send(this.getUpdatePacket()); // CraftBukkit
++                } finally {
++                    ClientboundBlockEntityDataPacket.BLOCK_ENTITY_LOCALE.remove();
++                }
++                // Paper end
+         }
+     }
+ 
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+index f2b20ed5063a293f0b464548f590d652170cd1d8..959824e49c3ba5a5fa5e4c50dff6f2148473fc2b 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+@@ -548,7 +548,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+ 
+                     Boolean shouldModify = chunk.getLevel().chunkPacketBlockController.shouldModify(player, chunk);
+                     player.connection.send(refreshPackets.computeIfAbsent(shouldModify, s -> { // Use connection to prevent creating firing event
+-                        return new ClientboundLevelChunkWithLightPacket(chunk, this.world.getLightEngine(), null, null, (Boolean) s);
++                        return new ClientboundLevelChunkWithLightPacket(chunk, this.world.getLightEngine(), null, null, (Boolean) s, player.adventure$locale); // Paper - adventure; pass Locale for rendering components in block entities
+                     }));
+                     // Paper end
+                 }
