@@ -40,6 +40,184 @@ index 0e734c07dbe82ba4c319a237f9e79b08b57b997f..00000000000000000000000000000000
 -        return io.papermc.paper.pluginremap.reflect.ReflectionRemapper.processClass(bytecode);
 -    }
 -}
+diff --git a/src/main/java/io/papermc/paper/plugin/entrypoint/classloader/bytecode/LegacyMaterialRewriteRule.java b/src/main/java/io/papermc/paper/plugin/entrypoint/classloader/bytecode/LegacyMaterialRewriteRule.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..27cb176244338418cb4ff76867d06c425162540e
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/plugin/entrypoint/classloader/bytecode/LegacyMaterialRewriteRule.java
+@@ -0,0 +1,172 @@
++package io.papermc.paper.plugin.entrypoint.classloader.bytecode;
++
++import io.papermc.asm.ClassProcessingContext;
++import io.papermc.asm.rules.RewriteRule;
++import io.papermc.asm.rules.builder.matcher.field.FieldMatcher;
++import io.papermc.asm.rules.builder.matcher.method.MethodMatcher;
++import io.papermc.asm.rules.field.FilteredFieldRewriteRule;
++import io.papermc.asm.rules.method.StaticRewrite;
++import io.papermc.asm.rules.method.generated.TargetedTypeGeneratedStaticRewrite;
++import io.papermc.asm.rules.rename.RenameRule;
++import java.lang.constant.ClassDesc;
++import java.lang.constant.MethodTypeDesc;
++import java.lang.reflect.Method;
++import java.util.Arrays;
++import java.util.HashSet;
++import java.util.Set;
++import org.bukkit.ChunkSnapshot;
++import org.bukkit.Material;
++import org.bukkit.craftbukkit.legacy.CraftEvil;
++import org.bukkit.craftbukkit.util.CraftLegacy;
++import org.bukkit.plugin.AuthorNagException;
++
++import static io.papermc.asm.util.DescriptorUtils.desc;
++import static io.papermc.asm.util.DescriptorUtils.methodDesc;
++import static java.lang.constant.ConstantDescs.CD_int;
++
++public class LegacyMaterialRewriteRule {
++
++    private static final ClassDesc CRAFT_LEGACY = desc(CraftLegacy.class);
++    private static final ClassDesc CRAFT_EVIL = desc(CraftEvil.class);
++
++    private static final ClassDesc MATERIAL = desc(Material.class);
++    private static final ClassDesc CHUNK_SNAPSHOT = desc(ChunkSnapshot.class);
++
++    public LegacyMaterialRewriteRule() {
++    }
++
++    public RewriteRule createLegacyRule() {
++        return RewriteRule.chain(
++            new LegacyMaterialFieldRule(),
++            this.createLegacyMethodsRenameRule(),
++            new LegacyEvilRule(),
++            new FallbackMaterialReturnRule()
++        );
++    }
++
++    public RewriteRule createModernRule() {
++        return RewriteRule.chain(
++            this.createModernMaterialMethodsRule()
++        );
++    }
++
++    private RewriteRule createModernMaterialMethodsRule() {
++        final MethodMatcher materialValues = MethodMatcher.single("values", b -> b.statik().desc(MethodTypeDesc.of(MATERIAL.arrayType())));
++        final MethodMatcher materialOrdinal = MethodMatcher.single("ordinal", b -> b.virtual().desc(MethodTypeDesc.of(CD_int)));
++        return RewriteRule.forOwnerClass(Material.class, f -> {
++            f.plainStaticRewrite(CRAFT_LEGACY, materialValues, "modern_values");
++            f.plainStaticRewrite(CRAFT_LEGACY, materialOrdinal, "modern_ordinal");
++        });
++    }
++
++    private static final class LegacyMaterialFieldRule implements FilteredFieldRewriteRule {
++
++        private static final FieldMatcher MATCHER = FieldMatcher.builder()
++            .match($ -> true, MATERIAL)
++            .build();
++
++        @Override
++        public FieldMatcher fieldMatcher() {
++            return MATCHER;
++        }
++
++        @Override
++        public Set<ClassDesc> owners() {
++            return Set.of(MATERIAL);
++        }
++
++        @Override
++        public Rewrite rewrite(final ClassProcessingContext context, final int opcode, final String owner, final String name, final ClassDesc fieldTypeDesc) {
++            try {
++                Material.valueOf("LEGACY_" + name);
++            } catch (final IllegalArgumentException ignored) {
++                throw new AuthorNagException("No legacy enum constant for " + name + ". Did you forget to define api-version: 1.13 in your plugin.yml?");
++            }
++            return new SimpleRewrite(opcode, owner, "LEGACY_" + name, fieldTypeDesc);
++        }
++    }
++
++    private RewriteRule createLegacyMethodsRenameRule() {
++        return RewriteRule.chain(
++            RenameRule.builder()
++                .method(CHUNK_SNAPSHOT, "getBlockData", MethodTypeDesc.of(CD_int, CD_int, CD_int, CD_int), "getData")
++                .build(),
++            RewriteRule.forOwnerClass(Material.class, f -> {
++                f.plainStaticRewrite(
++                    CRAFT_EVIL,
++                    MethodMatcher.single("getMaterial", b -> b.statik().desc(MethodTypeDesc.of(MATERIAL, CD_int)))
++                );
++                f.plainStaticRewrite(
++                    CRAFT_LEGACY,
++                    MethodMatcher.builder()
++                        .match(Set.of("values", "valueOf", "getMaterial", "matchMaterial", "ordinal", "name", "toString"))
++                        .build()
++                );
++            })
++        );
++    }
++
++    private static final class LegacyEvilRule implements StaticRewrite {
++
++        private static final Set<String> EVIL = new HashSet<>(Arrays.asList(
++            "org/bukkit/World (III)I getBlockTypeIdAt",
++            "org/bukkit/World (Lorg/bukkit/Location;)I getBlockTypeIdAt",
++            "org/bukkit/block/Block ()I getTypeId",
++            "org/bukkit/block/Block (I)Z setTypeId",
++            "org/bukkit/block/Block (IZ)Z setTypeId",
++            "org/bukkit/block/Block (IBZ)Z setTypeIdAndData",
++            "org/bukkit/block/Block (B)V setData",
++            "org/bukkit/block/Block (BZ)V setData",
++            "org/bukkit/inventory/ItemStack ()I getTypeId",
++            "org/bukkit/inventory/ItemStack (I)V setTypeId",
++            "org/bukkit/inventory/ItemStack (S)V setDurability"
++        ));
++
++        @Override
++        public boolean shouldProcess(final ClassProcessingContext context, final int opcode, final String owner, final String name, final String descriptor, final boolean isInterface, final boolean isInvokeDynamic) {
++            return EVIL.contains("%s %s %s".formatted(owner, descriptor, name))
++                || (owner.startsWith("org/bukkit/block/") && "%s %s".formatted(descriptor, name).equals("()I getTypeId"))
++                || (owner.startsWith("org/bukkit/block/") && "%s %s".formatted(descriptor, name).equals("(I)Z setTypeId"))
++                || (owner.startsWith("org/bukkit/block/") && "%s %s".formatted(descriptor, name).equals( "()Lorg/bukkit/Material; getType"));
++        }
++
++        @Override
++        public ClassDesc staticRedirectOwner(final ClassProcessingContext context) {
++            return CRAFT_EVIL;
++        }
++    }
++
++    private static final class FallbackMaterialReturnRule implements TargetedTypeGeneratedStaticRewrite.Return {
++
++        private static final Method STATIC_HANDLER;
++        static {
++            try {
++                STATIC_HANDLER = org.bukkit.craftbukkit.legacy.CraftLegacy.class.getDeclaredMethod("toLegacy", Material.class);
++            } catch (final NoSuchMethodException e) {
++                throw new RuntimeException(e);
++            }
++        }
++
++        @Override
++        public boolean shouldProcess(final ClassProcessingContext context, final int opcode, final String owner, final String name, final String descriptor, final boolean isInterface, final boolean isInvokeDynamic) {
++            final MethodTypeDesc methodDesc = methodDesc(descriptor);
++            return (owner.startsWith("org/bukkit/") || owner.startsWith("com/destroystokyo") || owner.startsWith("io/papermc"))
++                && methodDesc.returnType().equals(MATERIAL);
++        }
++
++        @Override
++        public boolean includeOwnerContext() {
++            return false;
++        }
++
++        @Override
++        public Method staticHandler() {
++            return STATIC_HANDLER;
++        }
++
++        @Override
++        public ClassDesc existingType() {
++            return MATERIAL;
++        }
++    }
++}
 diff --git a/src/main/java/io/papermc/paper/plugin/entrypoint/classloader/bytecode/PaperClassloaderBytecodeModifier.java b/src/main/java/io/papermc/paper/plugin/entrypoint/classloader/bytecode/PaperClassloaderBytecodeModifier.java
 new file mode 100644
 index 0000000000000000000000000000000000000000..c87f5197305c54d9f30c723cb8abfa43b03a2cf5

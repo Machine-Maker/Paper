@@ -42,6 +42,7 @@ for (name in listOf("Paper-API", "Paper-Server")) {
 optionalInclude("test-plugin")
 optionalInclude("paper-api-generator")
 
+includeBuild("../asm-utils")
 fun optionalInclude(name: String, op: (ProjectDescriptor.() -> Unit)? = null) {
     val settingsFile = file("$name.settings.gradle.kts")
     if (settingsFile.exists()) {
