@@ -220,33 +220,65 @@ index 0000000000000000000000000000000000000000..27cb176244338418cb4ff76867d06c42
 +}
 diff --git a/src/main/java/io/papermc/paper/plugin/entrypoint/classloader/bytecode/PaperClassloaderBytecodeModifier.java b/src/main/java/io/papermc/paper/plugin/entrypoint/classloader/bytecode/PaperClassloaderBytecodeModifier.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..c87f5197305c54d9f30c723cb8abfa43b03a2cf5
+index 0000000000000000000000000000000000000000..33822f7a955f08395965c92e678029e75b911870
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/plugin/entrypoint/classloader/bytecode/PaperClassloaderBytecodeModifier.java
-@@ -0,0 +1,86 @@
+@@ -0,0 +1,122 @@
 +package io.papermc.paper.plugin.entrypoint.classloader.bytecode;
 +
++import io.papermc.asm.rules.builder.matcher.method.MethodMatcher;
 +import io.papermc.asm.rules.rename.RenameRule;
 +import io.papermc.asm.versioned.CachingVersionedRuleFactory;
 +import io.papermc.asm.versioned.VersionedRuleFactory;
 +import io.papermc.paper.plugin.configuration.PluginMeta;
 +import io.papermc.paper.plugin.entrypoint.classloader.ClassloaderBytecodeModifier;
 +import java.util.Map;
++import java.util.Set;
 +import java.util.TreeMap;
 +import net.minecraft.world.entity.EntityType;
 +import org.bukkit.Art;
++import org.bukkit.Bukkit;
 +import org.bukkit.DyeColor;
 +import org.bukkit.Material;
-+import org.bukkit.Particle;
++import org.bukkit.Server;
 +import org.bukkit.attribute.Attribute;
 +import org.bukkit.block.Biome;
 +import org.bukkit.craftbukkit.util.ApiVersion;
 +import org.bukkit.loot.LootTables;
++import org.bukkit.map.MapView;
++
++import static io.papermc.asm.util.DescriptorUtils.desc;
++import static io.papermc.asm.versioned.VersionedRuleFactory.forOwnerClass;
++import static io.papermc.asm.versioned.VersionedRuleFactory.forOwnerClasses;
++import static java.lang.constant.ConstantDescs.CD_int;
++import static java.lang.constant.ConstantDescs.CD_short;
 +
 +public class PaperClassloaderBytecodeModifier extends CachingVersionedRuleFactory implements ClassloaderBytecodeModifier {
 +
-+    private static VersionedRuleFactory renames() {
++    private static final ApiVersion VERSION_1_13 = ApiVersion.getOrCreateVersion("1.13");
 +
++    private static VersionedRuleFactory generalMethods() {
++        return VersionedRuleFactory.chain(
++            forOwnerClass(MapView.class, f -> {
++                f.changeReturnTypeToSub(
++                    CD_int,
++                    VERSION_1_13,
++                    CD_short,
++                    MethodMatcher.single("getId", b -> b.virtual().desc("()I"))
++                );
++            }),
++            forOwnerClasses(Set.of(Bukkit.class, Server.class), f -> {
++                f.changeParamToSuper(
++                    CD_int,
++                    VERSION_1_13,
++                    CD_short,
++                    MethodMatcher.single("getMap", b -> b.desc("(S)Lorg/bukkit/map/MapView;"))
++                );
++            })
++        );
++    }
++
++    private static VersionedRuleFactory renames() {
 +        return new RenameRule.Versioned(new TreeMap<>(
 +            Map.of(
 +                ApiVersion.NONE, RenameRule.builder() // <1.13
@@ -298,6 +330,10 @@ index 0000000000000000000000000000000000000000..c87f5197305c54d9f30c723cb8abfa43
 +                    .build()
 +            )
 +        ));
++    }
++
++    private static VersionedRuleFactory miscellaneous() {
++        return
 +    }
 +
 +    @Override
