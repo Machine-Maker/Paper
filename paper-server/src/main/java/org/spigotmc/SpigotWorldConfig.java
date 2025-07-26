@@ -1,7 +1,6 @@
 package org.spigotmc;
 
 import java.util.List;
-import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 public class SpigotWorldConfig {
@@ -25,7 +24,6 @@ public class SpigotWorldConfig {
 
     private void log(String s) {
         if (this.verbose) {
-            Bukkit.getLogger().info(s);
         }
     }
 
