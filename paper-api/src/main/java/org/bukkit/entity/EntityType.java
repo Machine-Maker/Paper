@@ -283,9 +283,9 @@ public enum EntityType implements Keyed, Translatable, net.kyori.adventure.trans
      *
      * @param name the entity type's name
      * @return the matching entity type or null
-     * @apiNote Internal Use Only
+     * @deprecated don't use
      */
-    @org.jetbrains.annotations.ApiStatus.Internal // Paper
+    @Deprecated
     @Contract("null -> null")
     @Nullable
     public static EntityType fromName(@Nullable String name) {

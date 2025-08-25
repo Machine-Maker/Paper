@@ -10,7 +10,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -26,16 +25,13 @@ import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import joptsimple.OptionSpec;
 import org.bukkit.Material;
-import org.bukkit.craftbukkit.legacy.FieldRename;
 import org.bukkit.craftbukkit.legacy.MaterialRerouting;
-import org.bukkit.craftbukkit.legacy.MethodRerouting;
 import org.bukkit.craftbukkit.legacy.reroute.Reroute;
 import org.bukkit.craftbukkit.legacy.reroute.RerouteArgument;
 import org.bukkit.craftbukkit.legacy.reroute.RerouteBuilder;
 import org.bukkit.craftbukkit.legacy.reroute.RerouteMethodData;
 import org.bukkit.plugin.AuthorNagException;
 import org.jetbrains.annotations.VisibleForTesting;
-import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
@@ -46,9 +42,6 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.RecordComponentVisitor;
 import org.objectweb.asm.Type;
-import org.objectweb.asm.TypePath;
-import org.objectweb.asm.commons.ClassRemapper;
-import org.objectweb.asm.commons.SimpleRemapper;
 
 public class Commodore {
     private static final String BUKKIT_GENERATED_METHOD_PREFIX = "BUKKIT_CUSTOM_METHOD_";
@@ -67,33 +60,8 @@ public class Commodore {
             "org/bukkit/inventory/ItemStack (S)V setDurability"
     ));
 
-    private static final Map<String, String> RENAMES = Map.of(
-            "org/bukkit/entity/TextDisplay$TextAligment", "org/bukkit/entity/TextDisplay$TextAlignment", // SPIGOT-7335
-            "org/spigotmc/event/entity/EntityMountEvent", "org/bukkit/event/entity/EntityMountEvent",
-            "org/spigotmc/event/entity/EntityDismountEvent", "org/bukkit/event/entity/EntityDismountEvent",
-            "org/bukkit/block/data/type/Crafter$Orientation", "org/bukkit/block/Orientation",
-            "org/bukkit/block/data/type/Jigsaw$Orientation", "org/bukkit/block/Orientation",
-            "org/bukkit/block/data/type/MossyCarpet$Height", "org/bukkit/block/data/type/Wall$Height"
-    );
-
-    private static final Map<String, String> CLASS_TO_INTERFACE = Map.ofEntries(
-            Map.entry("org/bukkit/inventory/InventoryView", "org/bukkit/craftbukkit/inventory/CraftAbstractInventoryView"),
-            Map.entry("org/bukkit/entity/Villager$Type", "NOP"),
-            Map.entry("org/bukkit/entity/Villager$Profession", "NOP"),
-            Map.entry("org/bukkit/entity/Frog$Variant", "NOP"),
-            Map.entry("org/bukkit/entity/Cat$Type", "NOP"),
-            Map.entry("org/bukkit/map/MapCursor$Type", "NOP"),
-            Map.entry("org/bukkit/block/banner/PatternType", "NOP"),
-            Map.entry("org/bukkit/Art", "NOP"),
-            Map.entry("org/bukkit/attribute/Attribute", "NOP"),
-            Map.entry("org/bukkit/block/Biome", "NOP"),
-            Map.entry("org/bukkit/Fluid", "NOP"),
-            Map.entry("org/bukkit/Sound", "NOP")
-    );
-
     private final List<Reroute> reroutes = new ArrayList<>(); // only for testing
     private Reroute materialReroute;
-    private Reroute reroute;
 
     public Commodore() {
     }
@@ -107,15 +75,8 @@ public class Commodore {
                 .create(compatibilityPresent)
                 .forClass(MaterialRerouting.class)
                 .build();
-        this.reroute = RerouteBuilder
-                .create(compatibilityPresent)
-                .forClass(FieldRename.class)
-                .forClass(MethodRerouting.class)
-                .build();
-
         this.reroutes.clear();
         this.reroutes.add(this.materialReroute);
-        this.reroutes.add(this.reroute);
     }
 
     @VisibleForTesting
@@ -216,16 +177,7 @@ public class Commodore {
         ClassReader cr = new ClassReader(b);
         ClassWriter cw = new ClassWriter(cr, 0);
 
-        ClassVisitor visitor = cw;
-
-        visitor = io.papermc.paper.pluginremap.reflect.ReflectionRemapper.visitor(visitor); // Paper
-
-        Map<String, String> renames = new HashMap<>(RENAMES);
-        if (pluginVersion.isOlderThan(ApiVersion.ABSTRACT_COW)) {
-            renames.put("org/bukkit/entity/Cow", "org/bukkit/entity/AbstractCow");
-        }
-
-        cr.accept(new ClassRemapper(new ClassVisitor(Opcodes.ASM9, visitor) {
+        cr.accept(new ClassVisitor(Opcodes.ASM9, cw) {
             final Set<RerouteMethodData> rerouteMethodData = new HashSet<>();
             String className;
             boolean isInterface;
@@ -234,10 +186,6 @@ public class Commodore {
             public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
                 this.className = name;
                 this.isInterface = (access & Opcodes.ACC_INTERFACE) != 0;
-                String craftbukkitClass = Commodore.CLASS_TO_INTERFACE.get(superName);
-                if (craftbukkitClass != null) {
-                    superName = craftbukkitClass;
-                }
                 super.visit(version, access, name, signature, superName, interfaces);
             }
 
@@ -275,16 +223,6 @@ public class Commodore {
                 }
 
                 super.visitEnd();
-            }
-
-            @Override
-            public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
-                return Commodore.createAnnotationVisitor(pluginVersion, this.api, super.visitAnnotation(descriptor, visible));
-            }
-
-            @Override
-            public AnnotationVisitor visitTypeAnnotation(int typeRef, TypePath typePath, String descriptor, boolean visible) {
-                return Commodore.createAnnotationVisitor(pluginVersion, this.api, super.visitTypeAnnotation(typeRef, typePath, descriptor, visible));
             }
 
             @Override
@@ -333,44 +271,8 @@ public class Commodore {
                             desc = getOriginalOrRewrite(desc);
                         }
                         // Paper end
-                        name = FieldRename.rename(pluginVersion, owner, name);
 
                         if (modern) {
-                            if (owner.equals("org/bukkit/Material")) {
-                                switch (name) {
-                                    case "CACTUS_GREEN":
-                                        name = "GREEN_DYE";
-                                        break;
-                                    case "DANDELION_YELLOW":
-                                        name = "YELLOW_DYE";
-                                        break;
-                                    case "ROSE_RED":
-                                        name = "RED_DYE";
-                                        break;
-                                    case "SIGN":
-                                        name = "OAK_SIGN";
-                                        break;
-                                    case "WALL_SIGN":
-                                        name = "OAK_WALL_SIGN";
-                                        break;
-                                    case "ZOMBIE_PIGMAN_SPAWN_EGG":
-                                        name = "ZOMBIFIED_PIGLIN_SPAWN_EGG";
-                                        break;
-                                    case "GRASS_PATH":
-                                        name = "DIRT_PATH";
-                                        break;
-                                    case "GRASS":
-                                        name = "SHORT_GRASS";
-                                        break;
-                                    case "SCUTE":
-                                        name = "TURTLE_SCUTE";
-                                        break;
-                                    case "CHAIN":
-                                        name = "IRON_CHAIN";
-                                        break;
-                                }
-                            }
-
                             super.visitFieldInsn(opcode, owner, name, desc);
                             return;
                         }
@@ -385,51 +287,10 @@ public class Commodore {
                             super.visitFieldInsn(opcode, owner, "LEGACY_" + name, desc);
                             return;
                         }
-
-                        if (owner.equals("org/bukkit/Art")) {
-                            switch (name) {
-                                case "BURNINGSKULL":
-                                    super.visitFieldInsn(opcode, owner, "BURNING_SKULL", desc);
-                                    return;
-                                case "DONKEYKONG":
-                                    super.visitFieldInsn(opcode, owner, "DONKEY_KONG", desc);
-                                    return;
-                            }
-                        }
-
-                        if (owner.equals("org/bukkit/DyeColor")) {
-                            switch (name) {
-                                case "SILVER":
-                                    super.visitFieldInsn(opcode, owner, "LIGHT_GRAY", desc);
-                                    return;
-                            }
-                        }
-
                         super.visitFieldInsn(opcode, owner, name, desc);
                     }
 
                     private void handleMethod(MethodPrinter visitor, int opcode, String owner, String name, String desc, boolean itf, Type samMethodType, Type instantiatedMethodType) {
-                        if (this.checkReroute(visitor, Commodore.this.reroute, opcode, owner, name, desc, samMethodType, instantiatedMethodType)) {
-                            return;
-                        }
-
-                        String craftbukkitClass = Commodore.CLASS_TO_INTERFACE.get(owner);
-                        if (craftbukkitClass != null) {
-                            if (opcode == Opcodes.INVOKESPECIAL || opcode == Opcodes.H_INVOKESPECIAL) {
-                                owner = craftbukkitClass;
-                            } else {
-                                if (opcode == Opcodes.INVOKEVIRTUAL) {
-                                    opcode = Opcodes.INVOKEINTERFACE;
-                                }
-
-                                if (opcode == Opcodes.H_INVOKEVIRTUAL) {
-                                    opcode = Opcodes.H_INVOKEINTERFACE;
-                                }
-
-                                itf = true;
-                            }
-                        }
-
                         // SPIGOT-4496
                         if (owner.equals("org/bukkit/map/MapView") && name.equals("getId") && desc.equals("()S")) {
                             // Should be same size on stack so just call other method
@@ -631,40 +492,6 @@ public class Commodore {
                         super.visitInvokeDynamicInsn(name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments);
                     }
 
-                    @Override
-                    public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
-                        return Commodore.createAnnotationVisitor(pluginVersion, this.api, super.visitAnnotation(descriptor, visible));
-                    }
-
-                    @Override
-                    public AnnotationVisitor visitAnnotationDefault() {
-                        return Commodore.createAnnotationVisitor(pluginVersion, this.api, super.visitAnnotationDefault());
-                    }
-
-                    @Override
-                    public AnnotationVisitor visitInsnAnnotation(int typeRef, TypePath typePath, String descriptor, boolean visible) {
-                        return Commodore.createAnnotationVisitor(pluginVersion, this.api, super.visitInsnAnnotation(typeRef, typePath, descriptor, visible));
-                    }
-
-                    @Override
-                    public AnnotationVisitor visitLocalVariableAnnotation(int typeRef, TypePath typePath, Label[] start, Label[] end, int[] index, String descriptor, boolean visible) {
-                        return Commodore.createAnnotationVisitor(pluginVersion, this.api, super.visitLocalVariableAnnotation(typeRef, typePath, start, end, index, descriptor, visible));
-                    }
-
-                    @Override
-                    public AnnotationVisitor visitParameterAnnotation(int parameter, String descriptor, boolean visible) {
-                        return Commodore.createAnnotationVisitor(pluginVersion, this.api, super.visitParameterAnnotation(parameter, descriptor, visible));
-                    }
-
-                    @Override
-                    public AnnotationVisitor visitTryCatchAnnotation(int typeRef, TypePath typePath, String descriptor, boolean visible) {
-                        return Commodore.createAnnotationVisitor(pluginVersion, this.api, super.visitTryCatchAnnotation(typeRef, typePath, descriptor, visible));
-                    }
-
-                    @Override
-                    public AnnotationVisitor visitTypeAnnotation(int typeRef, TypePath typePath, String descriptor, boolean visible) {
-                        return Commodore.createAnnotationVisitor(pluginVersion, this.api, super.visitTypeAnnotation(typeRef, typePath, descriptor, visible));
-                    }
                 };
             }
 
@@ -676,73 +503,24 @@ public class Commodore {
                     signature = getOriginalOrRewrite(signature);
                 }
                 // Paper end
-                return new FieldVisitor(this.api, super.visitField(access, name, descriptor, signature, value)) {
-                    @Override
-                    public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
-                        return Commodore.createAnnotationVisitor(pluginVersion, this.api, super.visitAnnotation(descriptor, visible));
-                    }
-
-                    @Override
-                    public AnnotationVisitor visitTypeAnnotation(int typeRef, TypePath typePath, String descriptor, boolean visible) {
-                        return Commodore.createAnnotationVisitor(pluginVersion, this.api, super.visitTypeAnnotation(typeRef, typePath, descriptor, visible));
-                    }
-                };
+                return super.visitField(access, name, descriptor, signature, value);
             }
 
             @Override
             public RecordComponentVisitor visitRecordComponent(String name, String descriptor, String signature) {
-                return new RecordComponentVisitor(this.api, super.visitRecordComponent(name, descriptor, signature)) {
-                    @Override
-                    public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
-                        return Commodore.createAnnotationVisitor(pluginVersion, this.api, super.visitAnnotation(descriptor, visible));
-                    }
-
-                    @Override
-                    public AnnotationVisitor visitTypeAnnotation(int typeRef, TypePath typePath, String descriptor, boolean visible) {
-                        return Commodore.createAnnotationVisitor(pluginVersion, this.api, super.visitTypeAnnotation(typeRef, typePath, descriptor, visible));
-                    }
-                };
+                descriptor = getOriginalOrRewrite(descriptor);
+                if (signature != null) {
+                    signature = getOriginalOrRewrite(signature);
+                }
+                return super.visitRecordComponent(name, descriptor, signature);
             }
-        }, new SimpleRemapper(renames)), 0);
+        }, 0);
 
         return cw.toByteArray();
     }
 
-    private static AnnotationVisitor createAnnotationVisitor(ApiVersion apiVersion, int api, AnnotationVisitor delegate) {
-        return new AnnotationVisitor(api, delegate) {
-            @Override
-            public void visitEnum(String name, String descriptor, String value) {
-                super.visitEnum(name, descriptor, FieldRename.rename(apiVersion, Type.getType(descriptor).getInternalName(), value));
-            }
-
-            @Override
-            public AnnotationVisitor visitArray(String name) {
-                return Commodore.createAnnotationVisitor(apiVersion, this.api, super.visitArray(name));
-            }
-
-            @Override
-            public AnnotationVisitor visitAnnotation(String name, String descriptor) {
-                return Commodore.createAnnotationVisitor(apiVersion, this.api, super.visitAnnotation(name, descriptor));
-            }
-        };
-    }
-
     public static boolean rerouteMethods(ApiVersion pluginVersion, Reroute reroute, boolean staticCall, String owner, String name, String desc, Consumer<RerouteMethodData> consumer) {
         return reroute.apply(pluginVersion, owner, name, desc, staticCall, consumer);
-    }
-
-    private static List<String> getMethodSignatures(byte[] clazz) {
-        List<String> methods = new ArrayList<>();
-        ClassReader cr = new ClassReader(clazz);
-        cr.accept(new ClassVisitor(Opcodes.ASM9) {
-            @Override
-            public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
-                methods.add(descriptor + " " + name);
-                return null;
-            }
-        }, 0);
-
-        return methods;
     }
 
     private static String buildMethodName(RerouteMethodData rerouteMethodData) {

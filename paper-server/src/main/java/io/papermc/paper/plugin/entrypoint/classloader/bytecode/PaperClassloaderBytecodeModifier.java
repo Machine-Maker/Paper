@@ -4,17 +4,24 @@ import com.google.common.collect.Iterators;
 import io.papermc.paper.plugin.ApiVersion;
 import io.papermc.paper.plugin.configuration.PluginMeta;
 import io.papermc.paper.plugin.entrypoint.classloader.ClassloaderBytecodeModifier;
+import io.papermc.paper.plugin.entrypoint.classloader.bytecode.version.V1_20_4;
+import io.papermc.paper.plugin.entrypoint.classloader.bytecode.version.V1_21;
+import io.papermc.paper.plugin.entrypoint.classloader.bytecode.version.V1_21_3;
+import io.papermc.paper.pluginremap.reflect.ReflectionRemapper;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import net.minecraft.util.Util;
 import org.objectweb.asm.Opcodes;
 
 public class PaperClassloaderBytecodeModifier implements ClassloaderBytecodeModifier {
 
-    private static final Map<ApiVersion, List<ModifierFactory>> MODIFIERS = Util.make(new LinkedHashMap<>(), map -> {
+    private static final Map<ApiVersion, List<ModifierFactory>> MODIFIERS = Util.make(new TreeMap<>(), map -> {
+        map.put(V1_20_4.VERSION, List.of(V1_20_4::new));
+        map.put(V1_21.VERSION, List.of(V1_21::new));
+        map.put(V1_21_3.VERSION, List.of(V1_21_3::new));
     });
 
     private final Map<ApiVersion, List<VersionedClassloaderBytecodeModifier>> constructedModifiers = MODIFIERS.entrySet().stream()
@@ -24,6 +31,8 @@ public class PaperClassloaderBytecodeModifier implements ClassloaderBytecodeModi
 
     @Override
     public byte[] modify(final PluginMeta configuration, byte[] bytecode) {
+        bytecode = ReflectionRemapper.processClass(bytecode);
+
         int start = -1;
         if (configuration.getAPIVersion() != null) {
             int i = 0;
